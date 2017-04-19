@@ -30,6 +30,7 @@ else
 fi
 cd $(dirname ${0})
 START_DIR=$(pwd)
+SELF="${START_DIR}/$(basename ${0})"
 if [ ${HELP} -gt 0 ]; then
   cat <<-EOF
 	Help
@@ -72,17 +73,21 @@ if [ -f ansible.cfg ]; then
   export ANSIBLE_CONFIG="$(pwd)/ansible.cfg"
 fi
 cd ..
-mkdir -p $(pwd)/profiles/${PROFILE}
+if [ ! -d $(pwd)/profiles/${PROFILE} ]; then
+  echo "Unable to find profile: ${PROFILE}"
+  echo "hint: mkdir -p $(pwd)/profiles/${PROFILE}"
+  exit 1
+fi
 case ${PROFILE} in
   localhost) ANSIBLE_INVENTORY="/etc/ansible/hosts" ;;
 esac
 AWS_PROFILE="$(echo "${PROFILE}" | tr '[:upper:]' '[:lower:]' | sed 's|/|-|g')"
-if [ -z "${ANSIBLE_INVENTORY}" ]; then
-  mkdir -p $(pwd)/profiles/${PROFILE}/.aws
-  export AWS_CONFIG_FILE="$(pwd)/profiles/${PROFILE}/.aws/config"
-  export AWS_SHARED_CREDENTIALS_FILE="$(pwd)/profiles/${PROFILE}/.aws/credentials"
-  export AWS_CREDENTIAL_PROFILES_FILE="$(pwd)/profiles/${PROFILE}/.aws/credentials"
-fi
+#if [ -z "${ANSIBLE_INVENTORY}" ]; then
+#  mkdir -p $(pwd)/profiles/${PROFILE}/.aws
+#  export AWS_CONFIG_FILE="$(pwd)/profiles/${PROFILE}/.aws/config"
+#  export AWS_SHARED_CREDENTIALS_FILE="$(pwd)/profiles/${PROFILE}/.aws/credentials"
+#  export AWS_CREDENTIAL_PROFILES_FILE="$(pwd)/profiles/${PROFILE}/.aws/credentials"
+#fi
 case ${COMMAND} in
   env) ;;
   vault) ;;
@@ -178,6 +183,15 @@ case ${COMMAND} in
       ;;
       instances)
         case ${2} in
+          aliases)
+            aws --profile ${AWS_PROFILE} ec2 describe-instances \
+              | jq -r '.Reservations[].Instances[]| (.Tags[]|select(.["Key"] == "Name")|.Value) + " " + .PrivateIpAddress' | while read LINE ; do
+                HN="$(echo ${LINE} | awk '{print $1}')"
+                IP="$(echo ${LINE} | awk '{print $2}')"
+                echo "alias ${AWS_PROFILE}-${HN}=\"${SELF} ${PROFILE} ssh ${IP}\""
+              done
+            EXIT_CODE="$?"
+          ;;
           running)
             case ${3} in
               details)
