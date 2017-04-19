@@ -31,6 +31,7 @@ fi
 cd $(dirname ${0})
 START_DIR=$(pwd)
 SELF="${START_DIR}/$(basename ${0})"
+cd ..
 if [ ${HELP} -gt 0 ]; then
   cat <<-EOF
 	Help
@@ -39,11 +40,11 @@ if [ ${HELP} -gt 0 ]; then
 
 	Profile(s):
 	$(
-                if [ -d ${START_DIR}/profiles ]; then
-			cd ${START_DIR}/profiles
-			if [ $(find * -name .vault.dat -type f 2>/dev/null | wc -l) -gt 0 ]; then
-				for D in $(find * -name .vault.dat -type f 2>/dev/null) ; do
-					echo " - $(dirname ${D})"
+                if [ -d profiles ]; then
+			cd profiles
+			if [ $(${START_DIR}/list-ansible-profiles | wc -l) -gt 0 ]; then
+				for D in $(${START_DIR}/list-ansible-profiles) ; do
+					echo " - ${D}"
 				done
 			else
 				echo " - none"
@@ -72,7 +73,6 @@ fi
 if [ -f ansible.cfg ]; then
   export ANSIBLE_CONFIG="$(pwd)/ansible.cfg"
 fi
-cd ..
 if [ ! -d $(pwd)/profiles/${PROFILE} ]; then
   echo "Unable to find profile: ${PROFILE}"
   echo "hint: mkdir -p $(pwd)/profiles/${PROFILE}"
