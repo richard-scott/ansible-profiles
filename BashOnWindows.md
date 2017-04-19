@@ -27,7 +27,7 @@ Notes: During the upgrade tasks it seems to keep pausing, so pressing enter ever
 
 # Create a root SSH Private/Public key pair
 ```
-yes | ssh-keygen -N ""
+yes '' | ssh-keygen -N ''
 ```
 
 # Install AWScli, Ansible, and Git
