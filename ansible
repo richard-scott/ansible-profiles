@@ -38,11 +38,15 @@ if [ ${HELP} -gt 0 ]; then
 
 	Profile(s):
 	$(
-		cd ${START_DIR}/profiles
-		if [ $(find * -name .vault.dat -type f 2>/dev/null | wc -l) -gt 0 ]; then
-			for D in $(find * -name .vault.dat -type f 2>/dev/null) ; do
-				echo " - $(dirname ${D})"
-			done
+                if [ -d ${START_DIR}/profiles ]; then
+			cd ${START_DIR}/profiles
+			if [ $(find * -name .vault.dat -type f 2>/dev/null | wc -l) -gt 0 ]; then
+				for D in $(find * -name .vault.dat -type f 2>/dev/null) ; do
+					echo " - $(dirname ${D})"
+				done
+			else
+				echo " - none"
+			fi
 		else
 			echo " - none"
 		fi
