@@ -128,7 +128,7 @@ fi
 export ANSIBLE_VAULT_PASSWORD_FILE=".vault.dat"
 if [ -z "${ANSIBLE_INVENTORY}" ]; then
   if [ ! -d profiles/${PROFILE}/inventory ]; then
-    echo "Creating profiles/${PROFILE}/inventory"
+    #echo "Creating profiles/${PROFILE}/inventory"
     mkdir -p profiles/${PROFILE}/inventory
     wget -q -O profiles/${PROFILE}/inventory/ec2.ini https://raw.github.com/ansible/ansible/devel/contrib/inventory/ec2.ini
     sed -i 's/ public_dns_name$/ private_dns_name/' profiles/${PROFILE}/inventory/ec2.ini
