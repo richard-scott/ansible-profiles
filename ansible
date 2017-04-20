@@ -55,18 +55,7 @@ if [ ${HELP} -gt 0 ]; then
 
 	Profile(s):
 	$(
-                if [ -d profiles ]; then
-			cd profiles
-			if [ $(${START_DIR}/list-ansible-profiles | wc -l) -gt 0 ]; then
-				for D in $(${START_DIR}/list-ansible-profiles) ; do
-					echo " - ${D}"
-				done
-			else
-				echo " - none"
-			fi
-		else
-			echo " - none"
-		fi
+		${SELF} list-profiles
 	)
 
 Commands:
@@ -128,7 +117,6 @@ fi
 export ANSIBLE_VAULT_PASSWORD_FILE=".vault.dat"
 if [ -z "${ANSIBLE_INVENTORY}" ]; then
   if [ ! -d profiles/${PROFILE}/inventory ]; then
-    #echo "Creating profiles/${PROFILE}/inventory"
     mkdir -p profiles/${PROFILE}/inventory
     wget -q -O profiles/${PROFILE}/inventory/ec2.ini https://raw.github.com/ansible/ansible/devel/contrib/inventory/ec2.ini
     sed -i 's/ public_dns_name$/ private_dns_name/' profiles/${PROFILE}/inventory/ec2.ini
