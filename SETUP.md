@@ -1,8 +1,10 @@
-# Setup Notes.
-clone into ~/Ansible
-add this to .bashrc:
+# Adding this as a submodule to an existing repo located at ~/Ansible
+cd ~/Ansible
+git submodule add git@github.com:richard-scott/ansible-profiles.git bin
+cd bin
+./setup.sh
 
-export PATH="${HOME}/Ansible/bin:${PATH}"
-for P in $(list-ansible-profiles) ; do
-  eval "$(ansible ${P} list instances aliases)"
-done
+# Add to a folder (not a git repo)
+cd ~/Ansible
+git clone git@github.com:richard-scott/ansible-profiles.git bin
+
