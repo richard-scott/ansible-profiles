@@ -10,7 +10,9 @@ if ! grep -q Ansible/bin ~/.bashrc ; then
 
 	# Add hooks to use custom 'ansible' wrapper
 	export PATH="${HOME}/Ansible/bin:${PATH}"
-	cd Ansible/bin
+	cd ~/Ansible
+	git pull --quiet
+	cd ~/Ansible/bin
 	git pull --quiet
 	cd ~
 	for PROFILE in $(ansible list-profiles) ; do
