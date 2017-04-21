@@ -195,6 +195,16 @@ case ${COMMAND} in
               done
             EXIT_CODE="$?"
           ;;
+          get-ip)
+            if [ -n "${3}" ]; then
+              aws --profile ${AWS_PROFILE} ec2 describe-instances \
+                | jq -r '.Reservations[].Instances[]| (.Tags[]|select(.["Key"] == "Name")|.Value) + " " + .PrivateIpAddress' \
+                | egrep "^${3}\s[[:digit:]]"
+              EXIT_CODE="$?"
+            else
+              EXIT_CODE="1"
+            fi
+          ;;
           running)
             case ${3} in
               details)
@@ -235,10 +245,17 @@ case ${COMMAND} in
     shift
     if [ -f ${PLAYBOOK} ]; then
       if [ -n "${HOST}" ]; then
+        if ! echo "${HOST}" | egrep "^[[:digit:]]+" ; then
+          HOST="$(${SELF} ${PROFILE} list instances get-ip ${HOST} | awk '{print $2}')"
+        fi
         HOST="--limit ${HOST}"
       fi
-      ansible-playbook ${PLAYBOOK} ${HOST} 2>&1
+      CMD="ansible-playbook ${PLAYBOOK} ${HOST}"
+      ${CMD} 2>&1
       EXIT_CODE="$?"
+      if [ ${EXIT_CODE} -ne 0 ]; then
+        echo "${CMD}"
+      fi
       rm -vf ${RETRY}
     else
       echo "Playbook $(pwd)/profiles/${PROFILE}/${PLAYBOOK}, does not exist!"
