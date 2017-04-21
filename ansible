@@ -98,7 +98,8 @@ case ${COMMAND} in
   *)
     if [ -z "${ANSIBLE_INVENTORY}" ]; then
       if ! aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
-        echo "Unable to find AWS profile: ${AWS_PROFILE}"
+        echo "AWS Profile ${AWS_PROFILE} not found!"
+        echo "Please configure it now:"
         if ! aws configure --profile ${AWS_PROFILE} ; then
           echo "Error creating AWS credentials profile, aborting!"
           exit 1
