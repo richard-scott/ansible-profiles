@@ -61,15 +61,52 @@ if [ ${HELP} -gt 0 ]; then
 Commands:
 
 - aws help
-- cli -m raw localhost -a uptime
-- env
+
+- cli: Run unmodified Ansible commands
+  - example: ansible [profile] cli -m raw localhost -a uptime
+
+- env: List ANSIBLE/AWS Environment variables setup
+
 - inventory
-- profile
-- raw localhost uptime
-- run playbook (leaving off .yml)
-- ssh ubuntu@ip
-- vault encrypt playbook (leaving off .yml)
-- vault decrypt playbook (leaving off .yml)
+  - list
+    - iam
+      - certs: List SSL Certs in IAM
+    - instances
+      - aliases: Output list of bash compatible alias command to setup shell
+      - get-ip: Convert a hostname into an IP address
+      - running: List basic information of running instances
+        - details: List more details of running instances
+      - stopped: List basic information of stopped instances
+  - example: ansible [profile] list iam certs
+             ansible [profile] list instances aliases
+             ansible [profile] list instances get-ip zabbix-server
+             ansible [profile] list instances running
+             ansible [profile] list instances running details
+             ansible [profile] list instances stopped
+
+- raw: Run simple commands on a host
+  - example: ansible [profile] raw localhost uptime
+
+- run playbook (leaving off .yml extension)
+  - example: ansible [profile] run zabbix-agent (This will run the zabbix-agent.yml playbook from the [profile] folder
+             ansible [profile] run zabbix-agent <hostname|ip> (This will only run it against this Hostname/IP)
+
+- setup: Run Ansible -m setup against a server to gather Ansible facts about a system (used for testing and working out fact names)
+  - example: ansible [profile] setup [hostname|ip]
+
+- scp: scp to/from a host
+  - example: ansible [profile] scp -r /etc [hostname|ip]:remote/path/relative/to/user/home/directory
+  - example: ansible [profile] scp -r /etc [hostname|ip]:/server/wide/remote/path
+
+- ssh: SSH to a host
+  - example: ansible [profile] ssh [hostname|ip]
+
+- vault
+  - vault encrypt yaml file (leaving off .yml)
+    - example: ansible [profile] vault encrypt secrets (This will encrypt secrets.yml playbook from the [profile] folder)
+
+  - vault decrypt yaml file (leaving off .yml)
+    - example: ansible [profile] vault decrypt secrets (This will encrypt secrets.yml playbook from the [profile] folder)
 
 EOF
   exit 1
