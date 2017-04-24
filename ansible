@@ -235,12 +235,14 @@ case ${COMMAND} in
           ;;
           get-ip)
             if [ -n "${3}" ]; then
-              aws --profile ${AWS_PROFILE} ec2 describe-instances \
+              RESULT="$(aws --profile ${AWS_PROFILE} ec2 describe-instances \
                 | jq -r '.Reservations[].Instances[]| (.Tags[]|select(.["Key"] == "Name")|.Value) + " " + .PrivateIpAddress' \
-                | egrep "^${3}\s[[:digit:]]"
-              EXIT_CODE="$?"
-            else
-              EXIT_CODE="1"
+                | egrep "^${3}\s[[:digit:]]")
+              if [[ -n "${RESULT}" ]]; then
+                echo "${RESULT}"
+              else
+                echo "${3}"
+              fi
             fi
           ;;
           running)
