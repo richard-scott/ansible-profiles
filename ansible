@@ -123,12 +123,16 @@ case ${PROFILE} in
   localhost) ANSIBLE_INVENTORY="/etc/ansible/hosts" ;;
 esac
 AWS_PROFILE="$(echo "${PROFILE}" | tr '[:upper:]' '[:lower:]' | sed 's|/|-|g')"
+####################################################################################
+# Can't uncomment this block as it doesnt work with ec2.py                         #
+####################################################################################
 #if [ -z "${ANSIBLE_INVENTORY}" ]; then
 #  mkdir -p $(pwd)/profiles/${PROFILE}/.aws
 #  export AWS_CONFIG_FILE="$(pwd)/profiles/${PROFILE}/.aws/config"
 #  export AWS_SHARED_CREDENTIALS_FILE="$(pwd)/profiles/${PROFILE}/.aws/credentials"
 #  export AWS_CREDENTIAL_PROFILES_FILE="$(pwd)/profiles/${PROFILE}/.aws/credentials"
 #fi
+####################################################################################
 case ${COMMAND} in
   env) ;;
   vault) ;;
@@ -141,6 +145,11 @@ case ${COMMAND} in
           echo "Error creating AWS credentials profile, aborting!"
           exit 1
         fi
+      fi
+      if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+        ASK_AWS=1
+      else
+        ASK_AWS=0
       fi
     fi
   ;;
@@ -235,9 +244,11 @@ case ${COMMAND} in
           ;;
           get-ip)
             if [ -n "${3}" ]; then
-              RESULT="$(aws --profile ${AWS_PROFILE} ec2 describe-instances \
-                | jq -r '.Reservations[].Instances[]| (.Tags[]|select(.["Key"] == "Name")|.Value) + " " + .PrivateIpAddress' \
-                | egrep "^${3}\s[[:digit:]]")"
+              if [[ "${ASK_AWS}" -eq 1 ]]; then
+                RESULT="$(aws --profile ${AWS_PROFILE} ec2 describe-instances \
+                  | jq -r '.Reservations[].Instances[]| (.Tags[]|select(.["Key"] == "Name")|.Value) + " " + .PrivateIpAddress' \
+                  | egrep "^${3}\s[[:digit:]]")"
+              fi
               if [[ -n "${RESULT}" ]]; then
                 echo "${RESULT}"
               else
