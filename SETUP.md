@@ -4,7 +4,7 @@ git submodule add git@github.com:richard-scott/ansible-profiles.git bin
 cd bin
 ./setup.sh
 
-# Add to a folder (not a git repo)
+# Add to a folder (not a git repo) located in ~/Ansible
 cd ~/Ansible
 git clone git@github.com:richard-scott/ansible-profiles.git bin
 
