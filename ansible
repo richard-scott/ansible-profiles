@@ -237,7 +237,7 @@ case ${COMMAND} in
             if [ -n "${3}" ]; then
               RESULT="$(aws --profile ${AWS_PROFILE} ec2 describe-instances \
                 | jq -r '.Reservations[].Instances[]| (.Tags[]|select(.["Key"] == "Name")|.Value) + " " + .PrivateIpAddress' \
-                | egrep "^${3}\s[[:digit:]]")
+                | egrep "^${3}\s[[:digit:]]")"
               if [[ -n "${RESULT}" ]]; then
                 echo "${RESULT}"
               else
