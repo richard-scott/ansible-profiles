@@ -283,7 +283,7 @@ case ${COMMAND} in
     shift
     if [ -f ${PLAYBOOK} ]; then
       if [ -n "${HOST}" ]; then
-        if ! echo "${HOST}" | egrep "^[[:digit:]]+" ; then
+        if ! echo "${HOST}" | egrep -q "^[[:digit:]]+" ; then
           HOST="$(${SELF} ${PROFILE} list instances get-ip ${HOST} | awk '{print $2}')"
         fi
         HOST="--limit ${HOST}"
@@ -368,9 +368,33 @@ case ${COMMAND} in
     EXIT_CODE="$?"
   ;;
   scp)
-    cd ${START_DIR}
-    scp ${ANSIBLE_SSH_ARGS} ${@}
-    EXIT_CODE="$?"
+    cd ${CWD}
+    H=""
+    for I in ${@} ; do
+      if ! echo "${I}" | grep -q "^-" ; then
+        if echo "${I}" | grep -q "@" ; then
+          H="$(echo ${I} | awk -F ':' '{print $1}' | awk -F '@' '{print $2}')"
+          break
+        else
+          if echo "${I}" | grep -q ":" ; then
+            H="$(echo ${I} | awk -F ':' '{print $1}')"
+            break
+          fi
+        fi
+      fi
+    done
+    if [[ -n "${H}" ]]; then
+      if ! echo "${H}" | egrep -q "^[[:digit:]]+" ; then
+        IP="$(${SELF} ${PROFILE} list instances get-ip ${H} | awk '{print $2}')"
+        CMD_ARGS="$(echo ${@} | sed -r "s|${H}:|${IP}:|")"
+      else
+        CMD_ARGS="${@}"
+      fi
+      scp ${ANSIBLE_SSH_ARGS} ${CMD_ARGS}
+      EXIT_CODE="$?"
+    else
+      EXIT_CODE="1"
+    fi
   ;;
   vault)
     CMD="${1}"
