@@ -286,7 +286,10 @@ case ${COMMAND} in
     if [ -f ${PLAYBOOK} ]; then
       if [ -n "${HOST}" ]; then
         if ! echo "${HOST}" | egrep -q "^[[:digit:]]+" ; then
-          HOST="$(${SELF} ${PROFILE} list instances get-ip ${HOST} | awk '{print $2}')"
+          HOST_BY_IP="$(${SELF} ${PROFILE} list instances get-ip ${HOST} | awk '{print $2}')"
+          if [[ -n "${HOST_BY_IP}" ]]; then
+            HOST="${HOST_BY_IP}"
+          fi
         fi
         HOST="--limit ${HOST}"
       fi
@@ -392,7 +395,10 @@ case ${COMMAND} in
     done
     if [[ -n "${H}" ]]; then
       if ! echo "${H}" | egrep -q "^[[:digit:]]+" ; then
-        IP="$(${SELF} ${PROFILE} list instances get-ip ${H} | awk '{print $2}')"
+        HOST_BY_IP="$(${SELF} ${PROFILE} list instances get-ip ${H} | awk '{print $2}')"
+        if [[ -n "${HOST_BY_IP}" ]]; then
+          H="${HOST_BY_IP}"
+        fi
         CMD_ARGS="$(echo ${@} | sed -r "s|${H}:|${IP}:|")"
       else
         CMD_ARGS="${@}"
