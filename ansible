@@ -364,7 +364,12 @@ case ${COMMAND} in
     else
       SSH_CMD="ssh"
     fi
-    ${SSH_CMD} -t -A -q ${ANSIBLE_SSH_ARGS} ${HOST} ${@}
+    if [[ -n "${@}" ]]; then
+      CMD_ARGS="${@}"
+    else
+      CMD_ARGS="sudo -i"
+    fi
+    ${SSH_CMD} -t -A -q ${ANSIBLE_SSH_ARGS} ${HOST} ${CMD_ARGS}
     EXIT_CODE="$?"
   ;;
   scp)
