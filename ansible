@@ -185,6 +185,22 @@ case ${COMMAND} in
   ;;
   list)
     case ${1} in
+      elb)
+        case ${2} in
+          instances)
+            if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+              aws --profile ${AWS_PROFILE} elb describe-load-balancers --load-balancer-name "${3}" \
+                | jq -r '.LoadBalancerDescriptions[].Instances[].InstanceId'
+            fi
+          ;;
+          *)
+            if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+              aws --profile ${AWS_PROFILE} elb describe-load-balancers \
+                | jq -r '.LoadBalancerDescriptions[]|.LoadBalancerName'
+            fi
+          ;;
+        esac
+      ;;
       iam)
         case ${2} in
           certs)
