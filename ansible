@@ -104,9 +104,6 @@ if [ ! -d $(pwd)/profiles/${PROFILE} ]; then
   echo "hint: mkdir -p $(pwd)/profiles/${PROFILE}"
   exit 1
 fi
-case ${PROFILE} in
-  localhost) ANSIBLE_INVENTORY="/etc/ansible/hosts" ;;
-esac
 ####################################################################################
 # Can't uncomment this block as it doesnt work with ec2.py                         #
 ####################################################################################
@@ -126,16 +123,25 @@ if [ -z "${ANSIBLE_INVENTORY}" ]; then
   export AWS_PROFILE="${AWS_PROFILE}"
   export AWS_DEFAULT_PROFILE="${AWS_PROFILE}"
   mkdir -p profiles/${PROFILE}/inventory
-  if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
-    if [ ! -f profiles/${PROFILE}/inventory/ec2.py ]; then
-      wget -q -O profiles/${PROFILE}/inventory/ec2.ini https://raw.github.com/ansible/ansible/devel/contrib/inventory/ec2.ini
-      sed -i 's/ public_dns_name$/ private_dns_name/' profiles/${PROFILE}/inventory/ec2.ini
-      sed -i 's/ ip_address$/ private_ip_address/' profiles/${PROFILE}/inventory/ec2.ini
-      sed -i 's/^#rds = False$/rds = False/' profiles/${PROFILE}/inventory/ec2.ini
-      wget -q -O profiles/${PROFILE}/inventory/ec2.py https://raw.github.com/ansible/ansible/devel/contrib/inventory/ec2.py
-      chmod +x profiles/${PROFILE}/inventory/ec2.py
-    fi
-  fi
+  case ${PROFILE} in
+    localhost)
+      if [[ ! -f profiles/${PROFILE}/inventory/localhost ]]; then
+        echo "localhost ssh_connection=localhost" > profiles/${PROFILE}/inventory/localhost
+      fi
+    ;;
+    *)
+      if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+        if [ ! -f profiles/${PROFILE}/inventory/ec2.py ]; then
+          wget -q -O profiles/${PROFILE}/inventory/ec2.ini https://raw.github.com/ansible/ansible/devel/contrib/inventory/ec2.ini
+          sed -i 's/ public_dns_name$/ private_dns_name/' profiles/${PROFILE}/inventory/ec2.ini
+          sed -i 's/ ip_address$/ private_ip_address/' profiles/${PROFILE}/inventory/ec2.ini
+          sed -i 's/^#rds = False$/rds = False/' profiles/${PROFILE}/inventory/ec2.ini
+          wget -q -O profiles/${PROFILE}/inventory/ec2.py https://raw.github.com/ansible/ansible/devel/contrib/inventory/ec2.py
+          chmod +x profiles/${PROFILE}/inventory/ec2.py
+        fi
+      fi
+    ;;
+  esac
   export ANSIBLE_INVENTORY="$(pwd)/profiles/${PROFILE}/inventory"
 fi
 cd profiles/${PROFILE}
