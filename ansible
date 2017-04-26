@@ -142,7 +142,6 @@ case ${COMMAND} in
     fi
   ;;
 esac
-fi
 if [ ! -f profiles/${PROFILE}/.vault.dat ]; then
   uuidgen > profiles/${PROFILE}/.vault.dat
 fi
