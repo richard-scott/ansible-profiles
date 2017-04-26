@@ -4,21 +4,6 @@ cd $(dirname ${0})
 SELF="$(pwd)/$(basename ${0})"
 cd ..
 START_DIR=$(pwd)
-#if [ -z "${ANSIBLE_INVENTORY}" ]; then
-#  if [ -f /var/lock/ansible ]; then
-#    rm -f /var/lock/ansible
-#  fi
-#  mkdir -p /var/lock/ansible
-#  exec 9>/var/lock/ansible/lock
-#  if ! flock -n 9 ; then
-#    echo "Already running, aborting!"
-#    exit 1
-#  fi
-#fi
-if ! which aws >/dev/null 2>&1 ; then
-  echo "Unable to locate 'aws' command line tool, have you installed it?"
-  exit 1
-fi
 HELP=0
 if [ -z "${1}" ]; then
   HELP=1
@@ -122,7 +107,6 @@ fi
 case ${PROFILE} in
   localhost) ANSIBLE_INVENTORY="/etc/ansible/hosts" ;;
 esac
-AWS_PROFILE="$(echo "${PROFILE}" | tr '[:upper:]' '[:lower:]' | sed 's|/|-|g')"
 ####################################################################################
 # Can't uncomment this block as it doesnt work with ec2.py                         #
 ####################################################################################
@@ -138,6 +122,10 @@ case ${COMMAND} in
   vault) ;;
   *)
     if [ -z "${ANSIBLE_INVENTORY}" ]; then
+      if ! which aws >/dev/null 2>&1 ; then
+        echo "Unable to locate 'aws' command line tool, have you installed it?"
+        exit 1
+      fi
       if ! aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
         echo "AWS Profile ${AWS_PROFILE} not found!"
         echo "Please configure it now:"
@@ -154,15 +142,15 @@ case ${COMMAND} in
     fi
   ;;
 esac
-if [ -z "${ANSIBLE_INVENTORY}" ]; then
-  export AWS_PROFILE="${AWS_PROFILE}"
-  export AWS_DEFAULT_PROFILE="${AWS_PROFILE}"
 fi
 if [ ! -f profiles/${PROFILE}/.vault.dat ]; then
   uuidgen > profiles/${PROFILE}/.vault.dat
 fi
 export ANSIBLE_VAULT_PASSWORD_FILE=".vault.dat"
 if [ -z "${ANSIBLE_INVENTORY}" ]; then
+  AWS_PROFILE="$(echo "${PROFILE}" | tr '[:upper:]' '[:lower:]' | sed 's|/|-|g')"
+  export AWS_PROFILE="${AWS_PROFILE}"
+  export AWS_DEFAULT_PROFILE="${AWS_PROFILE}"
   if [ ! -d profiles/${PROFILE}/inventory ]; then
     mkdir -p profiles/${PROFILE}/inventory
     wget -q -O profiles/${PROFILE}/inventory/ec2.ini https://raw.github.com/ansible/ansible/devel/contrib/inventory/ec2.ini
@@ -234,13 +222,14 @@ case ${COMMAND} in
       instances)
         case ${2} in
           aliases)
-            aws --profile ${AWS_PROFILE} ec2 describe-instances \
-              | jq -r '.Reservations[].Instances[]| (.Tags[]|select(.["Key"] == "Name")|.Value) + " " + .PrivateIpAddress' | while read LINE ; do
-                HN="$(echo ${LINE} | awk '{print $1}')"
-                IP="$(echo ${LINE} | awk '{print $2}')"
-                echo "alias ${AWS_PROFILE}-${HN}=\"${SELF} ${PROFILE} ssh ${IP}\""
-              done
-            EXIT_CODE="$?"
+            if [[ "${ASK_AWS}" -eq 1 ]]; then
+              aws --profile ${AWS_PROFILE} ec2 describe-instances \
+                | jq -r '.Reservations[].Instances[]| (.Tags[]|select(.["Key"] == "Name")|.Value) + " " + .PrivateIpAddress' | while read LINE ; do
+                  HN="$(echo ${LINE} | awk '{print $1}')"
+                  IP="$(echo ${LINE} | awk '{print $2}')"
+                  echo "alias ${AWS_PROFILE}-${HN}=\"${SELF} ${PROFILE} ssh ${IP}\""
+                done
+            fi
           ;;
           get-ip)
             if [ -n "${3}" ]; then
@@ -262,13 +251,11 @@ case ${COMMAND} in
                 aws --profile ${AWS_PROFILE} ec2 describe-instances \
                   --filters "Name=instance-state-name,Values=running" \
                   | jq -r '.Reservations[].Instances[]|.VpcId + " " + (.Tags[]|select(.["Key"] == "Name")|.Value) + " " + .PrivateIpAddress + " " + .SubnetId + " " + (.SecurityGroups[]|select(.["GroupId"])|.GroupId) + " " + .InstanceType + " " + .IamInstanceProfile.Arn + " " + .PublicIpAddress'
-                EXIT_CODE="$?"
               ;;
               *)
                 aws --profile ${AWS_PROFILE} ec2 describe-instances \
                   --filters "Name=instance-state-name,Values=running" \
                   | jq -r '.Reservations[].Instances[]|.VpcId + " " + (.Tags[]|select(.["Key"] == "Name")|.Value) + " " + .PrivateIpAddress + " " + .KeyName'
-                EXIT_CODE="$?"
               ;;
             esac
           ;;
@@ -276,7 +263,6 @@ case ${COMMAND} in
             aws --profile ${AWS_PROFILE} ec2 describe-instances  \
               --filters "Name=instance-state-name,Values=stopped" \
               | jq -r '.Reservations[].Instances[]|.VpcId + " " + (.Tags[]|select(.["Key"] == "Name")|.Value) + " " + .PrivateIpAddress + " " + .KeyName'
-            EXIT_CODE="$?"
           ;;
         esac
       ;;
