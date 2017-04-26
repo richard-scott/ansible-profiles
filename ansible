@@ -104,16 +104,6 @@ if [ ! -d $(pwd)/profiles/${PROFILE} ]; then
   echo "hint: mkdir -p $(pwd)/profiles/${PROFILE}"
   exit 1
 fi
-####################################################################################
-# Can't uncomment this block as it doesnt work with ec2.py                         #
-####################################################################################
-#if [ -z "${ANSIBLE_INVENTORY}" ]; then
-#  mkdir -p $(pwd)/profiles/${PROFILE}/.aws
-#  export AWS_CONFIG_FILE="$(pwd)/profiles/${PROFILE}/.aws/config"
-#  export AWS_SHARED_CREDENTIALS_FILE="$(pwd)/profiles/${PROFILE}/.aws/credentials"
-#  export AWS_CREDENTIAL_PROFILES_FILE="$(pwd)/profiles/${PROFILE}/.aws/credentials"
-#fi
-####################################################################################
 if [ ! -f profiles/${PROFILE}/.vault.dat ]; then
   uuidgen > profiles/${PROFILE}/.vault.dat
 fi
