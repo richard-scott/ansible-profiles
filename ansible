@@ -53,16 +53,21 @@ Commands:
 - env: List ANSIBLE/AWS Environment variables setup
 
 - inventory
-  - list
-    - iam
-      - certs: List SSL Certs in IAM
-    - instances
-      - aliases: Output list of bash compatible alias command to setup shell
-      - get-ip: Convert a hostname into an IP address
-      - running: List basic information of running instances
-        - details: List more details of running instances
-      - stopped: List basic information of stopped instances
-  - example: ansible [profile] list iam certs
+
+- list
+  - elb: list ELBs by name
+    - instances: list instances attached to an elb
+  - iam
+    - certs: List SSL Certs in IAM
+  - instances
+    - aliases: Output list of bash compatible alias command to setup shell
+    - get-ip: Convert a hostname into an IP address
+    - running: List basic information of running instances
+      - details: List more details of running instances
+    - stopped: List basic information of stopped instances
+  - example: ansible [profile] list elb
+             ansible [profile] list elb instances [elb-name]
+             ansible [profile] list iam certs
              ansible [profile] list instances aliases
              ansible [profile] list instances get-ip zabbix-server
              ansible [profile] list instances running
