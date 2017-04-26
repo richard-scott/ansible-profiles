@@ -189,6 +189,8 @@ case ${COMMAND} in
       if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
         ${ANSIBLE_INVENTORY}/ec2.py ${@}
       fi
+    else
+      find ${ANSIBLE_INVENTORY} -type f -exec cat {} \; | sort
     fi
   ;;
   list)
