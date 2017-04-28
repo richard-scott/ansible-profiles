@@ -195,7 +195,9 @@ case ${COMMAND} in
           instances)
             if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
               aws --profile ${AWS_PROFILE} elb describe-load-balancers --load-balancer-name "${3}" \
-                | jq -r '.LoadBalancerDescriptions[].Instances[].InstanceId'
+                | jq -r '.LoadBalancerDescriptions[].Instances[].InstanceId' | while read LINE ; do
+                  ${SELF} ${PROFILE} list instances get-name-from-id ${LINE}
+                done
             fi
           ;;
           *)
@@ -238,6 +240,14 @@ case ${COMMAND} in
                 echo "${RESULT}"
               else
                 echo "${3}"
+              fi
+            fi
+          ;;
+          get-name-from-id)
+            if [ -n "${3}" ]; then
+              if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+                aws --profile ${AWS_PROFILE} ec2 describe-instances --instance-ids ${3} \
+                  | jq -r '.Reservations[].Instances[]| (.Tags[]|select(.["Key"] == "Name")|.Value) + " " + .PrivateIpAddress'
               fi
             fi
           ;;
@@ -420,10 +430,7 @@ case ${COMMAND} in
     if [[ -n "${H}" ]]; then
       if ! echo "${H}" | egrep -q "^[[:digit:]]+" ; then
         HOST_BY_IP="$(${SELF} ${PROFILE} list instances get-ip ${H} | awk '{print $2}')"
-        if [[ -n "${HOST_BY_IP}" ]]; then
-          H="${HOST_BY_IP}"
-        fi
-        CMD_ARGS="$(echo ${@} | sed -r "s|${H}:|${IP}:|")"
+        CMD_ARGS="$(echo ${@} | sed -r "s|${H}:|${HOST_BY_IP}:|")"
       else
         CMD_ARGS="${@}"
       fi
