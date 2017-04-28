@@ -310,7 +310,7 @@ case ${COMMAND} in
         HOST="--limit ${HOST}"
       fi
       if [ -f inventory/ec2.py ]; then
-        if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+        if ! aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
           EXIT_CODE=1
         fi
       fi
