@@ -307,7 +307,11 @@ case ${COMMAND} in
             HOST="${HOST_BY_IP}"
           fi
         fi
-        HOST="--limit ${HOST}"
+        HOST="--limit '${HOST}'"
+      else
+        if [[ -e host_vars/exclude ]]; then
+          HOST="--limit @host_vars/exclude"
+        fi
       fi
       if [ -f inventory/ec2.py ]; then
         if ! aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
@@ -315,7 +319,7 @@ case ${COMMAND} in
         fi
       fi
       if [[ ${EXIT_CODE} -eq 0 ]]; then
-        ansible-playbook ${PLAYBOOK} ${HOST} 2>&1
+        ansible-playbook --forks=10 ${PLAYBOOK} ${HOST} 2>&1
         EXIT_CODE="$?"
       fi
       rm -vf ${RETRY}
