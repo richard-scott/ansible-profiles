@@ -40,7 +40,6 @@ apt-get update
 apt-get install git ansible awscli jq
 ```
 
-
 # Optionally add aliases to here:
 ```
 touch ~/.bash_aliases
