@@ -310,7 +310,6 @@ case ${COMMAND} in
         HOST="--limit '${HOST}'"
       else
         if [[ -e host_vars/exclude ]]; then
-        if ! egrep "\s+" host_vars/exclude
           HOST="--limit @host_vars/exclude"
         fi
       fi
