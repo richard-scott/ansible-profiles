@@ -22,6 +22,8 @@ sudo -i
 ```
 do-release-upgrade -f DistUpgradeViewNonInteractive
 mv -f /etc/apt/apt.conf.d/50unattended-upgrades.ucf-dist /etc/apt/apt.conf.d/50unattended-upgrades
+apt-get remove --purge $(dpkg -l | grep "^rc" | awk '{print $2}' | tr '\n' ' ')
+apt-get --fix-broken install
 ```
 Notes: During the upgrade tasks it seems to keep pausing, so pressing enter every now and then helps as it seems to stall for some reason.
 
