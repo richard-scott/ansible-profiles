@@ -221,12 +221,24 @@ case ${COMMAND} in
         case ${2} in
           aliases)
             if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
-              aws --profile ${AWS_PROFILE} ec2 describe-instances \
+              UPDATE_CACHE=0
+              mkdir -p ~/.ansible/tmp/
+              if [[ ! -e ~/.ansible/tmp/${AWS_PROFILE}-instances.cache ]]; then
+                UPDATE_CACHE=1
+              else
+                if [[ $(($(date +%s)-$(date -r ~/.ansible/tmp/${AWS_PROFILE}-instances.cache +%s))) -gt 900 ]]; then
+                  UPDATE_CACHE=1
+                fi
+              fi
+              if [[ ${UPDATE_CACHE} -gt 0 ]]; then
+                aws --profile ${AWS_PROFILE} ec2 describe-instances > ~/.ansible/tmp/${AWS_PROFILE}-instances.cache
+              fi
+              cat ~/.ansible/tmp/${AWS_PROFILE}-instances.cache \
                 | jq -r '.Reservations[].Instances[]| (.Tags[]|select(.["Key"] == "Name")|.Value) + " " + .PrivateIpAddress' | while read LINE ; do
-                  HN="$(echo ${LINE} | awk '{print $1}')"
-                  IP="$(echo ${LINE} | awk '{print $2}')"
-                  echo "alias ${AWS_PROFILE}-${HN}=\"${SELF} ${PROFILE} ssh ${IP}\""
-                done
+                HN="$(echo ${LINE} | awk '{print $1}')"
+                IP="$(echo ${LINE} | awk '{print $2}')"
+                echo "alias ${AWS_PROFILE}-${HN}=\"${SELF} ${PROFILE} ssh ${IP}\""
+              done
             fi
           ;;
           get-ip)
