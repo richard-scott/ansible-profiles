@@ -237,7 +237,9 @@ case ${COMMAND} in
 
               fi
               cat ~/.ansible/tmp/${AWS_PROFILE}-instances.cache | while read LINE ; do
-                echo "alias ${AWS_PROFILE}-$(echo ${LINE} | awk '{print $1}')=\"${SELF} ${PROFILE} ssh $(echo ${LINE} | awk '{print $2}')\""
+                if [[ -n "$(echo ${LINE} | awk '{print $2}')" ]]; then
+                  echo "alias ${AWS_PROFILE}-$(echo ${LINE} | awk '{print $1}')=\"${SELF} ${PROFILE} ssh $(echo ${LINE} | awk '{print $2}')\""
+                fi
               done
             fi
           ;;
