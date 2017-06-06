@@ -140,7 +140,7 @@ if [[ -z "${ANSIBLE_INVENTORY}" ]]; then
   export ANSIBLE_INVENTORY="$(pwd)/profiles/${PROFILE}/inventory"
 fi
 cd profiles/${PROFILE}
-export ANSIBLE_SSH_ARGS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+export ANSIBLE_SSH_ARGS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -C -o ControlMaster=no"
 if [[ -f .ssh/config ]]; then
   export ANSIBLE_SSH_ARGS="${ANSIBLE_SSH_ARGS} -F $(pwd)/.ssh/config"
 fi
