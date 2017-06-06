@@ -333,7 +333,7 @@ case ${COMMAND} in
         fi
       fi
       if [[ ${EXIT_CODE} -eq 0 ]]; then
-        ansible-playbook --forks=10 ${PLAYBOOK} ${HOST} 2>&1
+        ansible-playbook ${PLAYBOOK} ${HOST} 2>&1
         EXIT_CODE="$?"
       fi
       rm -vf ${RETRY}
