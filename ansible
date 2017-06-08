@@ -142,7 +142,7 @@ fi
 cd profiles/${PROFILE}
 export ANSIBLE_SSH_ARGS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 if [[ -f .ssh/config ]]; then
-  export ANSIBLE_SSH_ARGS="-F $(pwd)/.ssh/config ${ANSIBLE_SSH_ARGS}"
+  export ANSIBLE_SSH_ARGS="-F $(pwd)/.ssh/config ${ANSIBLE_SSH_ARGS} -o ControlMaster=no"
 fi
 case ${COMMAND} in
   cli|env|raw|run)
