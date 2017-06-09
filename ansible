@@ -140,9 +140,9 @@ if [[ -z "${ANSIBLE_INVENTORY}" ]]; then
   export ANSIBLE_INVENTORY="$(pwd)/profiles/${PROFILE}/inventory"
 fi
 cd profiles/${PROFILE}
-export ANSIBLE_SSH_ARGS="-C -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ControlMaster=no"
+export ANSIBLE_SSH_EXTRA_ARGS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 if [[ -f .ssh/config ]]; then
-  export ANSIBLE_SSH_ARGS="-F $(pwd)/.ssh/config ${ANSIBLE_SSH_ARGS}"
+  export ANSIBLE_SSH_EXTRA_ARGS="-F $(pwd)/.ssh/config ${ANSIBLE_SSH_EXTRA_ARGS}"
 fi
 case ${COMMAND} in
   cli|env|raw|run)
@@ -311,7 +311,9 @@ case ${COMMAND} in
     PLAYBOOK="${1}.yml"
     RETRY="${1}.retry"
     shift
-    HOST="${1}"
+    if ! echo "${1}" | egrep -q "^\-" ; then
+      HOST="${1}"
+    fi
     shift
     if [[ -f ${PLAYBOOK} ]]; then
       if [[ -n "${HOST}" ]]; then
