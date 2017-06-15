@@ -419,8 +419,10 @@ case ${COMMAND} in
     if [[ -n "${@}" ]]; then
       CMD_ARGS="${@}"
     fi
-    if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
-      CMD_ARGS="${CMD_ARGS} sudo -i"
+    if [[ -z "${CMD_ARGS}" ]]; then
+      if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+        CMD_ARGS="${CMD_ARGS} sudo -i"
+      fi
     fi
     if [[ -f inventory/ec2.py ]]; then
       if ! aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
