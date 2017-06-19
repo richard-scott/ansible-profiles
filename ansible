@@ -417,6 +417,10 @@ case ${COMMAND} in
       SSH_CMD="ssh"
     fi
     if [[ -n "${@}" ]]; then
+      if ! echo "${I}" | grep -q "^-" ; then
+        SSH_CMD="${SSH_CMD} ${1}"
+        shift
+      fi
       CMD_ARGS="${@}"
     fi
     if [[ -z "${CMD_ARGS}" ]]; then
