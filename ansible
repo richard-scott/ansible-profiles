@@ -140,9 +140,9 @@ if [[ -z "${ANSIBLE_INVENTORY}" ]]; then
   export ANSIBLE_INVENTORY="$(pwd)/profiles/${PROFILE}/inventory"
 fi
 cd profiles/${PROFILE}
-export ANSIBLE_SSH_EXTRA_ARGS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+export ANSIBLE_SSH_ARGS="-C -o ControlMaster=auto -o ControlPersist=60s -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 if [[ -f .ssh/config ]]; then
-  export ANSIBLE_SSH_EXTRA_ARGS="-F $(pwd)/.ssh/config ${ANSIBLE_SSH_EXTRA_ARGS}"
+  export ANSIBLE_SSH_ARGS="-C -F $(pwd)/.ssh/config ${ANSIBLE_SSH_ARGS}"
 fi
 case ${COMMAND} in
   cli|env|raw|run)
@@ -434,7 +434,7 @@ case ${COMMAND} in
       fi
     fi
     if [[ ${EXIT_CODE} -eq 0 ]]; then
-      ${SSH_CMD} -t -A -q ${ANSIBLE_SSH_ARGS}  ${ANSIBLE_SSH_EXTRA_ARGS} ${HOST} ${CMD_ARGS}
+      ${SSH_CMD} -t -A -q ${ANSIBLE_SSH_ARGS} ${HOST} ${CMD_ARGS}
       EXIT_CODE="$?"
     fi
   ;;
