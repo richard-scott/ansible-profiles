@@ -417,7 +417,7 @@ case ${COMMAND} in
       SSH_CMD="ssh"
     fi
     if [[ -n "${@}" ]]; then
-      if ! echo "${I}" | grep -q "^-" ; then
+      if ! echo "${@}" | grep -q "^-" ; then
         SSH_CMD="${SSH_CMD} ${1}"
         shift
       fi
@@ -425,7 +425,9 @@ case ${COMMAND} in
     fi
     if [[ -z "${CMD_ARGS}" ]]; then
       if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
-        CMD_ARGS="${CMD_ARGS} sudo -i"
+        case $(aws --profile ${AWS_PROFILE} ec2 describe-instances --query 'Reservations[*].Instances[*].[Tags[?Key==`Sudo`].Value|[0],PrivateIpAddress,PublicIpAddress]' --output text | grep ${TARGET_HOST} | awk '{print $1}' | sed 's/None//' | column | tr '[:upper:]' '[:lower:]') in
+          yes|true|0) CMD_ARGS="${CMD_ARGS} sudo -i" ;;
+        esac
       fi
     fi
     if [[ -f inventory/ec2.py ]]; then
