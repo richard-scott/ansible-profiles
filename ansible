@@ -234,13 +234,16 @@ case ${COMMAND} in
                 aws --profile ${AWS_PROFILE} ec2 describe-instances \
                   | jq -r '.Reservations[].Instances[]| (.Tags[]|select(.["Key"] == "Name")|.Value) + " " + .PrivateIpAddress' \
                   > ~/.ansible/tmp/${AWS_PROFILE}-instances.cache
-
+                touch ~/.ansible/tmp/${AWS_PROFILE}-instances.cache-aliases
+                truncate ~/.ansible/tmp/${AWS_PROFILE}-instances.cache-aliases
+                cat ~/.ansible/tmp/${AWS_PROFILE}-instances.cache | while read LINE ; do
+                  if [[ -n "$(echo ${LINE} | awk '{print $2}')" ]]; then
+                    echo "alias ${AWS_PROFILE}-$(echo ${LINE} | awk '{print $1}')=\"${SELF} ${PROFILE} ssh $(echo ${LINE} | awk '{print $2}')\"" | tee -a ~/.ansible/tmp/${AWS_PROFILE}-instances.cache-aliases
+                  fi
+                done
+              else
+                cat ~/.ansible/tmp/${AWS_PROFILE}-instances.cache-aliases
               fi
-              cat ~/.ansible/tmp/${AWS_PROFILE}-instances.cache | while read LINE ; do
-                if [[ -n "$(echo ${LINE} | awk '{print $2}')" ]]; then
-                  echo "alias ${AWS_PROFILE}-$(echo ${LINE} | awk '{print $1}')=\"${SELF} ${PROFILE} ssh $(echo ${LINE} | awk '{print $2}')\""
-                fi
-              done
             fi
           ;;
           get-ip)
