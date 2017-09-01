@@ -314,10 +314,10 @@ case ${COMMAND} in
     PLAYBOOK="${1}.yml"
     RETRY="${1}.retry"
     shift
-    if ! echo "${1}" | egrep -q "^\-" ; then
-      HOST="${1}"
-    fi
-    shift
+    case ${1} in
+      -*) ;;
+      *) HOST="${1}"
+    esac
     if [[ -f ${PLAYBOOK} ]]; then
       if [[ -n "${HOST}" ]]; then
         if ! echo "${HOST}" | egrep -q "^[[:digit:]]+" ; then
@@ -338,7 +338,7 @@ case ${COMMAND} in
         fi
       fi
       if [[ ${EXIT_CODE} -eq 0 ]]; then
-        ansible-playbook ${PLAYBOOK} ${HOST} 2>&1
+        ansible-playbook ${@} ${PLAYBOOK} ${HOST} 2>&1
         EXIT_CODE="$?"
       fi
       rm -vf ${RETRY}
