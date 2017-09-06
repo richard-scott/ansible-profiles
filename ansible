@@ -235,7 +235,7 @@ case ${COMMAND} in
                   | jq -r '.Reservations[].Instances[]| (.Tags[]|select(.["Key"] == "Name")|.Value) + " " + .PrivateIpAddress' \
                   > ~/.ansible/tmp/${AWS_PROFILE}-instances.cache
                 touch ~/.ansible/tmp/${AWS_PROFILE}-instances.cache-aliases
-                truncate ~/.ansible/tmp/${AWS_PROFILE}-instances.cache-aliases
+                truncate --size=0 ~/.ansible/tmp/${AWS_PROFILE}-instances.cache-aliases
                 cat ~/.ansible/tmp/${AWS_PROFILE}-instances.cache | while read LINE ; do
                   if [[ -n "$(echo ${LINE} | awk '{print $2}')" ]]; then
                     echo "alias ${AWS_PROFILE}-$(echo ${LINE} | awk '{print $1}')=\"${SELF} ${PROFILE} ssh $(echo ${LINE} | awk '{print $2}')\"" | tee -a ~/.ansible/tmp/${AWS_PROFILE}-instances.cache-aliases
