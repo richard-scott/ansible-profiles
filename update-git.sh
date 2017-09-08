@@ -1,5 +1,5 @@
 #!/bin/bash
-REFRESH=5
+REFRESH=20
 echo -n "Updating GIT Repos."
 for GR in $(find ~ -name .git) ; do
   if [ $(find ${GR} -maxdepth 0 -type d -mmin +${REFRESH} | wc -l) -gt 0 ]; then
