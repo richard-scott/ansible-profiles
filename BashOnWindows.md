@@ -43,5 +43,5 @@ apt-get install git ansible awscli jq
 # Optionally add aliases to here:
 ```
 touch ~/.bash_aliases
-echo 'alias nano="nano -Sw"' >> .bash_aliases
+echo 'alias nano="/bin/nano --tabsize 2 --smooth --nowrap --autoindent"' >> .bash_aliases
 ```

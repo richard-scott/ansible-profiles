@@ -20,6 +20,10 @@ else
       fi
       exit 0
     ;;
+    \-\-version)
+      /usr/bin/ansible --version
+      exit 0
+    ;;
     *)
       PROFILE="${1}"
       shift
@@ -97,6 +101,8 @@ Commands:
 
   - vault decrypt yaml file (leaving off .yml)
     - example: ansible [profile] vault decrypt secrets (This will encrypt secrets.yml playbook from the [profile] folder)
+
+- version: display ansible version details
 
 EOF
   exit 1
