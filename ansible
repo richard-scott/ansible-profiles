@@ -364,9 +364,11 @@ case ${COMMAND} in
     TARGET="${1}"
     shift
     if echo "${TARGET}" | grep -q "@" ; then
+     OVERRIDE_USER=0
      TARGET_USER="$(echo ${TARGET} | awk -F ':' '{print $1}' | awk -F '@' '{print $1}')"
      TARGET_HOST="$(echo ${TARGET} | awk -F ':' '{print $1}' | awk -F '@' '{print $2}')"
     else
+     OVERRIDE_USER=1
       for INVENTORY_FILE in group_vars/all host_vars/all inventory/hosts host_vars/${TARGET} ; do
         if [[ -f ${INVENTORY_FILE} ]]; then
           if echo "${INVENTORY_FILE}" | grep -Eq "^(group|host)_vars/(all|${TARGET})$" ; then
@@ -401,10 +403,12 @@ case ${COMMAND} in
       if [[ -z "${TARGET_HOST}" ]]; then
         TARGET_HOST="${TARGET}"
       fi
-      if [[ -z "${TARGET_USER}" ]]; then
-        R="$(aws --profile ${AWS_PROFILE} ec2 describe-instances --query 'Reservations[*].Instances[*].[Tags[?Key==`User`].Value|[0],PrivateIpAddress,PublicIpAddress]' --output text | grep ${TARGET_HOST} | awk '{print $1}' | sed 's/None//' | column)"
-        if [[ -n "${R}" ]]; then
-          TARGET_USER="${R}"
+      if [[ "${OVERRIDE_USER}" -gt 0 ]]; then
+        if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+          R="$(aws --profile ${AWS_PROFILE} ec2 describe-instances --query 'Reservations[*].Instances[*].[Tags[?Key==`Default Username`].Value|[0],PrivateIpAddress,PublicIpAddress]' --output text | grep ${TARGET_HOST} | awk '{print $1}' | sed 's/None//' | column)"
+          if [[ -n "${R}" ]]; then
+            TARGET_USER="${R}"
+          fi
         fi
       fi
     fi
