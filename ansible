@@ -20,7 +20,7 @@ else
       fi
       exit 0
     ;;
-    \-\-version)
+    \-version|\-\-version)
       /usr/bin/ansible --version
       exit 0
     ;;
