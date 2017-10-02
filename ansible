@@ -334,7 +334,7 @@ case ${COMMAND} in
     shift
     case ${1} in
       -*) ;;
-      *) HOST="--limit ${1}"
+      *) HOST="${1}"
     esac
     if [[ -f ${PLAYBOOK} ]]; then
       if [[ -n "${HOST}" ]]; then
@@ -344,7 +344,7 @@ case ${COMMAND} in
               HOST_BY_IP="$(${SELF} ${PROFILE} list instances get-ip ${HOST} | awk '{print $2}')"
               if [[ -n "${HOST_BY_IP}" ]]; then
                 HOST="${HOST_BY_IP}"
-                HOST="--limit '${HOST}'"
+                HOST="--limit ${HOST}"
               fi
             else
               EXIT_CODE=1
