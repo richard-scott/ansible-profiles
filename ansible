@@ -304,16 +304,28 @@ case ${COMMAND} in
     esac
   ;;
   raw)
-    HOSTS="${1}"
+    HOST="${1}"
     shift
-    if [[ -f inventory/ec2.py ]]; then
-      if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
-        EXIT_CODE=1
+    if [[ -n "${HOST}" ]]; then
+      if ! echo "${HOST}" | egrep -q "^[[:digit:]]+" ; then
+        if [[ -f inventory/ec2.py ]]; then
+          if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+            HOST_BY_IP="$(${SELF} ${PROFILE} list instances get-ip ${HOST} | awk '{print $2}')"
+            if [[ -n "${HOST_BY_IP}" ]]; then
+              HOST="${HOST_BY_IP}"
+            fi
+          else
+            EXIT_CODE=1
+          fi
+        fi
       fi
-    fi
-    if [[ ${EXIT_CODE} -eq 0 ]]; then
-      /usr/bin/ansible -m raw ${HOSTS} -a "${@}"
-      EXIT_CODE="$?"
+      if [[ ${EXIT_CODE} -eq 0 ]]; then
+        env | egrep "^(ANSIBLE|AWS)_"
+        /usr/bin/ansible -m raw ${HOST} -a "${@}"
+        EXIT_CODE="$?"
+      fi
+    else
+      EXIT_CODE=1
     fi
   ;;
   run)
@@ -322,29 +334,30 @@ case ${COMMAND} in
     shift
     case ${1} in
       -*) ;;
-      *) HOST="${1}"
+      *) HOST="--limit ${1}"
     esac
     if [[ -f ${PLAYBOOK} ]]; then
       if [[ -n "${HOST}" ]]; then
         if ! echo "${HOST}" | egrep -q "^[[:digit:]]+" ; then
-          HOST_BY_IP="$(${SELF} ${PROFILE} list instances get-ip ${HOST} | awk '{print $2}')"
-          if [[ -n "${HOST_BY_IP}" ]]; then
-            HOST="${HOST_BY_IP}"
+          if [[ -f inventory/ec2.py ]]; then
+            if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+              HOST_BY_IP="$(${SELF} ${PROFILE} list instances get-ip ${HOST} | awk '{print $2}')"
+              if [[ -n "${HOST_BY_IP}" ]]; then
+                HOST="${HOST_BY_IP}"
+                HOST="--limit '${HOST}'"
+              fi
+            else
+              EXIT_CODE=1
+            fi
           fi
         fi
-        HOST="--limit '${HOST}'"
       else
         if [[ -e host_vars/exclude ]]; then
           HOST="--limit @host_vars/exclude"
         fi
       fi
-      if [[ -f inventory/ec2.py ]]; then
-        if ! aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
-          EXIT_CODE=1
-        fi
-      fi
       if [[ ${EXIT_CODE} -eq 0 ]]; then
-        ansible-playbook ${@} ${PLAYBOOK} ${HOST} 2>&1
+        ansible-playbook ${PLAYBOOK} ${HOST} 2>&1
         EXIT_CODE="$?"
       fi
       rm -vf ${RETRY}
@@ -354,16 +367,27 @@ case ${COMMAND} in
     fi
   ;;
   setup)
-    TARGET="${1}"
+    HOST="${1}"
     shift
-    if [[ -f inventory/ec2.py ]]; then
-      if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
-        EXIT_CODE=1
+    if [[ -n "${HOST}" ]]; then
+      if ! echo "${HOST}" | egrep -q "^[[:digit:]]+" ; then
+        if [[ -f inventory/ec2.py ]]; then
+          if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+            HOST_BY_IP="$(${SELF} ${PROFILE} list instances get-ip ${HOST} | awk '{print $2}')"
+            if [[ -n "${HOST_BY_IP}" ]]; then
+              HOST="${HOST_BY_IP}"
+            fi
+          else
+            EXIT_CODE=1
+          fi
+        fi
       fi
-    fi
-    if [[ ${EXIT_CODE} -eq 0 ]]; then
-      /usr/bin/ansible -m setup ${TARGET}
-      EXIT_CODE="$?"
+      if [[ ${EXIT_CODE} -eq 0 ]]; then
+        /usr/bin/ansible -m setup ${HOST}
+        EXIT_CODE="$?"
+      fi
+    else
+      EXIT_CODE=1
     fi
   ;;
   ssh)
