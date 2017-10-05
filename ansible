@@ -237,7 +237,7 @@ case ${COMMAND} in
                 fi
               fi
               if [[ ${UPDATE_CACHE} -gt 0 ]]; then
-                aws --profile ${AWS_PROFILE} ec2 describe-instances \
+                aws --profile ${AWS_PROFILE} ec2 describe-instances  --filter "Name=instance-state-name,Values=running" \
                   | jq -r '.Reservations[].Instances[]| (.Tags[]|select(.["Key"] == "Name")|.Value) + " " + .PrivateIpAddress' \
                   > ~/.ansible/tmp/${AWS_PROFILE}-instances.cache
                 touch ~/.ansible/tmp/${AWS_PROFILE}-instances.cache-aliases
