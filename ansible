@@ -247,6 +247,11 @@ case ${COMMAND} in
                     echo "alias ${AWS_PROFILE}-$(echo ${LINE} | awk '{print $1}')=\"${SELF} ${PROFILE} ssh $(echo ${LINE} | awk '{print $2}')\"" | tee -a ~/.ansible/tmp/${AWS_PROFILE}-instances.cache-aliases
                   fi
                 done
+                if [[ -f inventory/aliases ]]; then
+                  cat inventory/aliases | while read LINE ; do
+                     echo "alias ${AWS_PROFILE}-$(echo ${LINE} | awk -F ':' '{print $1}' | sed -r 's/\s+$//')=\"${SELF} ${PROFILE} $(echo ${LINE} | awk -F ':' '{print $2}'| sed -r 's/^\s+//')\"" | tee -a ~/.ansible/tmp/${AWS_PROFILE}-instances.cache-aliases
+                  done
+                fi
               else
                 cat ~/.ansible/tmp/${AWS_PROFILE}-instances.cache-aliases
               fi
