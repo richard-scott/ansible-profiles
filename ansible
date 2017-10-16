@@ -248,7 +248,7 @@ case ${COMMAND} in
                   fi
                 done
                 if [[ -f inventory/aliases ]]; then
-                  cat inventory/aliases | while read LINE ; do
+                  cat inventory/aliases | grep -v "^#" | while read LINE ; do
                      echo "alias ${AWS_PROFILE}-$(echo ${LINE} | awk -F ':' '{print $1}' | sed -r 's/\s+$//')=\"${SELF} ${PROFILE} $(echo ${LINE} | awk -F ':' '{print $2}'| sed -r 's/^\s+//')\"" | tee -a ~/.ansible/tmp/${AWS_PROFILE}-instances.cache-aliases
                   done
                 fi
