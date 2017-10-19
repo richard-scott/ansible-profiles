@@ -64,19 +64,19 @@ Commands:
   - iam
     - certs: List SSL Certs in IAM
   - instances
-    - aliases: Output list of bash compatible alias command to setup shell
-    - get-ip: Convert a hostname into an IP address
-    - running: List basic information of running instances
-      - details: List more details of running instances
-    - stopped: List basic information of stopped instances
-  - example: ansible [profile] list elb
-             ansible [profile] list elb instances [elb-name]
-             ansible [profile] list iam certs
-             ansible [profile] list instances aliases
-             ansible [profile] list instances get-ip zabbix-server
-             ansible [profile] list instances running
-             ansible [profile] list instances running details
-             ansible [profile] list instances stopped
+      - aliases: Output list of bash compatible alias command to setup shell
+      - get-ip: Convert a hostname into an IP address
+      - running: List basic information of running instances
+        - details: List more details of running instances
+      - stopped: List basic information of stopped instances
+    - example: ansible [profile] list elb
+               ansible [profile] list elb instances [elb-name]
+               ansible [profile] list iam certs
+               ansible [profile] list instances aliases
+               ansible [profile] list instances get-ip zabbix-server
+               ansible [profile] list instances running
+               ansible [profile] list instances running details
+               ansible [profile] list instances stopped
 
 - raw: Run simple commands on a host
   - example: ansible [profile] raw localhost uptime
@@ -89,11 +89,13 @@ Commands:
   - example: ansible [profile] setup [hostname|ip]
 
 - scp: scp to/from a host
-  - example: ansible [profile] scp -r /etc [hostname|ip]:remote/path/relative/to/user/home/directory
-  - example: ansible [profile] scp -r /etc [hostname|ip]:/server/wide/remote/path
+  - example: ansible [profile] scp -r /etc <username@>[hostname|ip]:remote/path/relative/to/user/home/directory
+             ansible [profile] scp -r /etc <username@>[hostname|ip]:/server/wide/remote/path
 
 - ssh: SSH to a host
-  - example: ansible [profile] ssh [hostname|ip]
+    - tunnel: Setup local to remote tunnel
+  - example: ansible [profile] ssh <username@>[hostname|ip]
+             ansible [profile] ssh tunnel <username@>[hostname|ip] [local_port] [remote_host] [remote_port]
 
 - vault
   - vault encrypt yaml file (leaving off .yml)
@@ -396,92 +398,111 @@ case ${COMMAND} in
     fi
   ;;
   ssh)
-    TARGET="${1}"
-    shift
-    if echo "${TARGET}" | grep -q "@" ; then
-     OVERRIDE_USER=0
-     TARGET_USER="$(echo ${TARGET} | awk -F ':' '{print $1}' | awk -F '@' '{print $1}')"
-     TARGET_HOST="$(echo ${TARGET} | awk -F ':' '{print $1}' | awk -F '@' '{print $2}')"
-    else
-     OVERRIDE_USER=1
-      for INVENTORY_FILE in group_vars/all host_vars/all inventory/hosts host_vars/${TARGET} ; do
-        if [[ -f ${INVENTORY_FILE} ]]; then
-          if echo "${INVENTORY_FILE}" | grep -Eq "^(group|host)_vars/(all|${TARGET})$" ; then
-            R="$(cat ${INVENTORY_FILE} | grep -v "^#" | awk -F 'ansible_host:' '{print $2}' | awk '{print $1}' | column)"
-            if [[ -n "${R}" ]]; then
-              TARGET_HOST="${R}"
-            fi
-            R="$(cat ${INVENTORY_FILE} | grep -v "^#" | awk -F 'ansible_user:' '{print $2}' | awk '{print $1}' | column)"
-            if [[ -n "${R}" ]]; then
-              TARGET_USER="${R}"
-            fi
-            R="$(cat ${INVENTORY_FILE} | grep -v "^#" | awk -F 'ansible_password:' '{print $2}' | awk '{print $1}' | column)"
-            if [[ -n "${R}" ]]; then
-              TARGET_USER_PASS="${R}"
-            fi
-          else
-            R="$(cat ${INVENTORY_FILE} | grep -v "^#" | grep "^${TARGET} " | awk -F 'ansible_host=' '{print $2}' | awk '{print $1}' | column)"
-            if [[ -n "${R}" ]]; then
-              TARGET_HOST="${R}"
-            fi
-            R="$(cat ${INVENTORY_FILE} | grep -v "^#" | grep "^${TARGET} " | awk -F 'ansible_user=' '{print $2}' | awk '{print $1}' | column)"
-            if [[ -n "${R}" ]]; then
-              TARGET_USER="${R}"
-            fi
-            R="$(cat ${INVENTORY_FILE} | grep -v "^#" | grep "^${TARGET} " | awk -F 'ansible_password=' '{print $2}' | awk '{print $1}' | column)"
-            if [[ -n "${R}" ]]; then
-              TARGET_USER_PASS="${R}"
-            fi
-          fi
-        fi
-      done
-      if [[ -z "${TARGET_HOST}" ]]; then
-        TARGET_HOST="${TARGET}"
-      fi
-      if [[ "${OVERRIDE_USER}" -gt 0 ]]; then
-        if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
-          R="$(aws --profile ${AWS_PROFILE} ec2 describe-instances --query 'Reservations[*].Instances[*].[Tags[?Key==`Default Username`].Value|[0],PrivateIpAddress,PublicIpAddress]' --output text | grep ${TARGET_HOST} | awk '{print $1}' | sed 's/None//' | column)"
-          if [[ -n "${R}" ]]; then
-            TARGET_USER="${R}"
-          fi
-        fi
-      fi
-    fi
-    if [[ -n "${TARGET_USER}" ]]; then
-      HOST="${TARGET_USER}@${TARGET_HOST}"
-    else
-      HOST="${TARGET_HOST}"
-    fi
-    if [[ -n "${TARGET_USER_PASS}" ]]; then
-      SSH_CMD="sshpass -e ssh"
-      export SSHPASS="${TARGET_USER_PASS}"
-    else
-      SSH_CMD="ssh"
-    fi
-    if [[ -n "${@}" ]]; then
-      if ! echo "${@}" | grep -q "^-" ; then
-        SSH_CMD="${SSH_CMD} ${1}"
+    case ${1} in
+      tunnel)
         shift
-      fi
-      CMD_ARGS="${@}"
-    fi
-    if [[ -z "${CMD_ARGS}" ]]; then
-      if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
-        case $(aws --profile ${AWS_PROFILE} ec2 describe-instances --query 'Reservations[*].Instances[*].[Tags[?Key==`Sudo`].Value|[0],PrivateIpAddress,PublicIpAddress]' --output text | grep ${TARGET_HOST} | awk '{print $1}' | sed 's/None//' | column | tr '[:upper:]' '[:lower:]') in
-          no|false|0) ;;
-          *) CMD_ARGS="${CMD_ARGS} sudo -i" ;;
-        esac
-      fi
-    fi
-    if [[ -f inventory/ec2.py ]]; then
-      if ! aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
-        EXIT_CODE=1
-      fi
-    fi
-    if [[ ${EXIT_CODE} -eq 0 ]]; then
-      ${SSH_CMD} -t -A -q ${ANSIBLE_SSH_ARGS} ${HOST} ${CMD_ARGS}
-      EXIT_CODE="$?"
-    fi
+        TARGET="${1}"
+        shift
+        LOCAL_PORT="${1}"
+        shift
+        REMOTE_HOST="${1}"
+        shift
+        REMOTE_PORT="${1}"
+        ${SELF} ${PROFILE} ssh ${TARGET} -L ${LOCAL_PORT}:${REMOTE_HOST}:${REMOTE_PORT} -N
+      ;;
+      *)
+        TARGET="${1}"
+        if [[ -z "${TARGET}" ]]; then
+          ${SELF}
+          exit 1
+        fi
+        shift
+        if echo "${TARGET}" | grep -q "@" ; then
+          OVERRIDE_USER=0
+          TARGET_USER="$(echo ${TARGET} | awk -F ':' '{print $1}' | awk -F '@' '{print $1}')"
+          TARGET_HOST="$(echo ${TARGET} | awk -F ':' '{print $1}' | awk -F '@' '{print $2}')"
+        else
+          OVERRIDE_USER=1
+          for INVENTORY_FILE in group_vars/all host_vars/all inventory/hosts host_vars/${TARGET} ; do
+            if [[ -f ${INVENTORY_FILE} ]]; then
+              if echo "${INVENTORY_FILE}" | grep -Eq "^(group|host)_vars/(all|${TARGET})$" ; then
+                R="$(cat ${INVENTORY_FILE} | grep -v "^#" | awk -F 'ansible_host:' '{print $2}' | awk '{print $1}' | column)"
+                if [[ -n "${R}" ]]; then
+                  TARGET_HOST="${R}"
+                fi
+                R="$(cat ${INVENTORY_FILE} | grep -v "^#" | awk -F 'ansible_user:' '{print $2}' | awk '{print $1}' | column)"
+                if [[ -n "${R}" ]]; then
+                  TARGET_USER="${R}"
+                fi
+                R="$(cat ${INVENTORY_FILE} | grep -v "^#" | awk -F 'ansible_password:' '{print $2}' | awk '{print $1}' | column)"
+                if [[ -n "${R}" ]]; then
+                  TARGET_USER_PASS="${R}"
+                fi
+              else
+                R="$(cat ${INVENTORY_FILE} | grep -v "^#" | grep "^${TARGET} " | awk -F 'ansible_host=' '{print $2}' | awk '{print $1}' | column)"
+                if [[ -n "${R}" ]]; then
+                  TARGET_HOST="${R}"
+                fi
+                R="$(cat ${INVENTORY_FILE} | grep -v "^#" | grep "^${TARGET} " | awk -F 'ansible_user=' '{print $2}' | awk '{print $1}' | column)"
+                if [[ -n "${R}" ]]; then
+                  TARGET_USER="${R}"
+                fi
+                R="$(cat ${INVENTORY_FILE} | grep -v "^#" | grep "^${TARGET} " | awk -F 'ansible_password=' '{print $2}' | awk '{print $1}' | column)"
+                if [[ -n "${R}" ]]; then
+                  TARGET_USER_PASS="${R}"
+                fi
+              fi
+            fi
+          done
+          if [[ -z "${TARGET_HOST}" ]]; then
+            TARGET_HOST="${TARGET}"
+          fi
+          if [[ "${OVERRIDE_USER}" -gt 0 ]]; then
+            if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+              R="$(aws --profile ${AWS_PROFILE} ec2 describe-instances --query 'Reservations[*].Instances[*].[Tags[?Key==`Default Username`].Value|[0],PrivateIpAddress,PublicIpAddress]' --output text | grep ${TARGET_HOST} | awk '{print $1}' | sed 's/None//' | column)"
+              if [[ -n "${R}" ]]; then
+                TARGET_USER="${R}"
+              fi
+            fi
+          fi
+        fi
+        if [[ -n "${TARGET_USER}" ]]; then
+          HOST="${TARGET_USER}@${TARGET_HOST}"
+        else
+          HOST="${TARGET_HOST}"
+        fi
+        if [[ -n "${TARGET_USER_PASS}" ]]; then
+          SSH_CMD="sshpass -e ssh"
+          export SSHPASS="${TARGET_USER_PASS}"
+        else
+          SSH_CMD="ssh"
+        fi
+        if [[ -n "${@}" ]]; then
+          if ! echo "${@}" | grep -q "^-" ; then
+            SSH_CMD="${SSH_CMD} ${1}"
+            shift
+          fi
+          CMD_ARGS="${@}"
+        fi
+        if [[ -z "${CMD_ARGS}" ]]; then
+          if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+            case $(aws --profile ${AWS_PROFILE} ec2 describe-instances --query 'Reservations[*].Instances[*].[Tags[?Key==`Sudo`].Value|[0],PrivateIpAddress,PublicIpAddress]' --output text | grep ${TARGET_HOST} | awk '{print $1}' | sed 's/None//' | column | tr '[:upper:]' '[:lower:]') in
+              no|false|0) ;;
+              *) CMD_ARGS="${CMD_ARGS} sudo -i" ;;
+            esac
+          fi
+        fi
+        if [[ -f inventory/ec2.py ]]; then
+          if ! aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+            EXIT_CODE=1
+          fi
+        fi
+        if [[ ${EXIT_CODE} -eq 0 ]]; then
+          ${SSH_CMD} -t -A -q ${ANSIBLE_SSH_ARGS} ${HOST} ${CMD_ARGS}
+          EXIT_CODE="$?"
+        fi
+      ;;
+    esac
   ;;
   scp)
     cd ${CWD}
