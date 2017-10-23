@@ -408,7 +408,8 @@ case ${COMMAND} in
         REMOTE_HOST="${1}"
         shift
         REMOTE_PORT="${1}"
-        ${SELF} ${PROFILE} ssh ${TARGET} -L ${LOCAL_PORT}:${REMOTE_HOST}:${REMOTE_PORT} -N
+        ${SELF} ${PROFILE} ssh ${TARGET} -L ${LOCAL_PORT}:${REMOTE_HOST}:${REMOTE_PORT} "(echo -n 'Press CTRL+C to drop tunnel' ; while true ; do sleep 10s ; echo -n '.' ; done)"
+        echo ""
       ;;
       *)
         TARGET="${1}"
