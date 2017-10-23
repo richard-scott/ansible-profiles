@@ -408,6 +408,7 @@ case ${COMMAND} in
         REMOTE_HOST="${1}"
         shift
         REMOTE_PORT="${1}"
+        echo "Creating SSH Tunnel from 127.0.0.1:${LOCAL_PORT} -> ${REMOTE_HOST}:${REMOTE_PORT} via ${TARGET}"
         ${SELF} ${PROFILE} ssh ${TARGET} -L ${LOCAL_PORT}:${REMOTE_HOST}:${REMOTE_PORT} "(echo -n 'Press CTRL+C to drop tunnel' ; while true ; do sleep 10s ; echo -n '.' ; done)"
         echo ""
       ;;
