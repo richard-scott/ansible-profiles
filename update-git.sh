@@ -1,11 +1,11 @@
 #!/bin/bash
-REFRESH=20
-echo -n "Updating GIT Repos."
+REFRESH=3
+echo -n "Updating GIT Repos"
 for GR in $(find ~ -name .git) ; do
   if [ $(find ${GR} -maxdepth 0 -type d -mmin +${REFRESH} | wc -l) -gt 0 ]; then
-    echo -n "."
     cd $(dirname ${GR})
     git pull --quiet >/dev/null 2>&1
+    echo -n "."
   fi
 done
 echo "."
