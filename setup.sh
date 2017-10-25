@@ -14,7 +14,7 @@ if ! grep -q Ansible/bin ~/.bashrc ; then
 	cd ~
   echo "Loading Alias list for:"
 	for PROFILE in $(ansible list-profiles) ; do
-	  echo "${PROFILE}"
+	  echo "  >> ${PROFILE}"
 	  eval "$(ansible ${PROFILE} list instances aliases)"
 	done
 
