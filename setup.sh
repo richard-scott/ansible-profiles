@@ -12,7 +12,9 @@ if ! grep -q Ansible/bin ~/.bashrc ; then
 	export PATH="${HOME}/Ansible/bin:${PATH}"
 	cd ~/Ansible/bin/update-git.sh
 	cd ~
+  echo "Loading Alias list for:"
 	for PROFILE in $(ansible list-profiles) ; do
+	  echo "${PROFILE}"
 	  eval "$(ansible ${PROFILE} list instances aliases)"
 	done
 
