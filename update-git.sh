@@ -1,13 +1,13 @@
 #!/bin/bash
-echo "Updating GIT Repos"
+echo "Checking GIT Repos:"
 cd $(dirname ${0})
-echo "Repo path: $(pwd)"
+echo "  >> $(pwd)"
 git pull | egrep -v "^Already up-to-date.$"
 cd
-REFRESH=5
+REFRESH=0
 for GR in $(find ~ -name .git) ; do
   if [ $(find ${GR} -maxdepth 0 -type d -mmin +${REFRESH} | wc -l) -gt 0 ]; then
-    echo "Repo path: ${GR}" | sed 's|/.git$//'
+    echo "  >> $(dirname ${GR})"
     cd $(dirname ${GR})
     git pull | egrep -v "^Already up-to-date.$"
   fi
