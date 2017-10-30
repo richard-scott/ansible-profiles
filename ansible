@@ -133,6 +133,11 @@ if [[ -z "${ANSIBLE_INVENTORY}" ]]; then
       fi
     ;;
     *)
+      if ! aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+        echo "Unable to find AWS profile: ${AWS_PROFILE}"
+        echo "Run: aws configure --profile ${AWS_PROFILE}"
+        exit 1
+      fi
       if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
         if [[ ! -f profiles/${PROFILE}/inventory/ec2.py ]]; then
           wget -q -O profiles/${PROFILE}/inventory/ec2.ini https://raw.github.com/ansible/ansible/devel/contrib/inventory/ec2.ini
