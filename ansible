@@ -485,17 +485,24 @@ case ${COMMAND} in
           SSH_CMD="ssh"
         fi
         if [[ -n "${@}" ]]; then
-          if ! echo "${@}" | grep -q "^-" ; then
-            SSH_CMD="${SSH_CMD} ${1}"
-            shift
-          fi
+        #  if ! echo "${@}" | grep -q "^-" ; then
+        #    SSH_CMD="${SSH_CMD} ${1}"
+        #    shift
+        #  fi
           CMD_ARGS="${@}"
         fi
         if [[ -z "${CMD_ARGS}" ]]; then
           if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
             case $(aws --profile ${AWS_PROFILE} ec2 describe-instances --query 'Reservations[*].Instances[*].[Tags[?Key==`Sudo`].Value|[0],PrivateIpAddress,PublicIpAddress]' --output text | grep ${TARGET_HOST} | awk '{print $1}' | sed 's/None//' | column | tr '[:upper:]' '[:lower:]') in
               no|false|0) ;;
-              *) CMD_ARGS="${CMD_ARGS} sudo -i" ;;
+              *)
+                SUDO_CMD="$(aws --profile ${AWS_PROFILE} ec2 describe-instances --query 'Reservations[*].Instances[*].[Tags[?Key==`Sudo Command`].Value|[0],PrivateIpAddress,PublicIpAddress]' --output text | grep ${TARGET_HOST} | awk '{print $1}' | sed 's/None//' | column | tr '[:upper:]' '[:lower:]')"
+                if [[ -n "${SUDO_CMD}" ]]; then
+                    CMD_ARGS="${CMD_ARGS} sudo ${SUDO_CMD}"
+                  else
+                    CMD_ARGS="${CMD_ARGS} sudo -i"
+                  fi
+              ;;
             esac
           fi
         fi
