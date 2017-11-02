@@ -49,12 +49,17 @@ if [[ ${HELP} -gt 0 ]]; then
 
 Commands:
 
-- aws help
+- aws [raw command[
+  - example: aws help
 
 - cli: Run unmodified Ansible commands
   - example: ansible [profile] cli -m raw localhost -a uptime
 
 - env: List ANSIBLE/AWS Environment variables setup
+
+- iam:
+    - password [username]
+  - example: iam password myuser
 
 - inventory
 
@@ -63,6 +68,8 @@ Commands:
     - instances: list instances attached to an elb
   - iam
     - certs: List SSL Certs in IAM
+    - password [username] [new_password]
+             aws password myuser newpass
   - instances
       - aliases: Output list of bash compatible alias command to setup shell
       - get-ip: Convert a hostname into an IP address
@@ -180,8 +187,12 @@ esac
 EXIT_CODE="0"
 case ${COMMAND} in
   aws)
-    aws --profile ${AWS_PROFILE} ${@}
-    EXIT_CODE="$?"
+    if [[ -n "${@}" ]]; then
+      aws --profile ${AWS_PROFILE} ${@}
+      EXIT_CODE="$?"
+    else
+      EXIT_CODE=1
+    fi
   ;;
   cli)
     /usr/bin/ansible "${@}"
@@ -191,6 +202,24 @@ case ${COMMAND} in
     echo ""
     env | grep -E "(ANSIBLE|AWS)"
     echo ""
+  ;;
+  iam)
+    case ${1} in
+      password)
+        shift
+        if [[ -n "${1}" ]]; then
+          CMD_ARGS="iam update-login-profile --user-name ${1}"
+          shift
+          TEMPORARY_PASSWORD="$(pwgen -sync 24 1)"
+          CMD_ARGS="${CMD_ARGS} --password ${TEMPORARY_PASSWORD} --password-reset-required"
+          echo "Temporary Password: ${TEMPORARY_PASSWORD}"
+          aws --profile ${AWS_PROFILE} ${CMD_ARGS}
+          EXIT_CODE="$?"
+        else
+          EXIT_CODE=1
+        fi
+      ;;
+    esac
   ;;
   inventory)
     if [[ -f ${ANSIBLE_INVENTORY}/ec2.py ]]; then
