@@ -70,8 +70,6 @@ Commands:
     - instances: list instances attached to an elb
   - iam
     - certs: List SSL Certs in IAM
-    - password [username] [new_password]
-             aws password myuser newpass
   - instances
       - aliases: Output list of bash compatible alias command to setup shell
       - get-ip: Convert a hostname into an IP address
@@ -109,7 +107,6 @@ Commands:
 - vault
   - vault encrypt yaml file (leaving off .yml)
     - example: ansible [profile] vault encrypt secrets (This will encrypt secrets.yml playbook from the [profile] folder)
-
   - vault decrypt yaml file (leaving off .yml)
     - example: ansible [profile] vault decrypt secrets (This will encrypt secrets.yml playbook from the [profile] folder)
 
