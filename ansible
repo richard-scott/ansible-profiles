@@ -59,7 +59,9 @@ Commands:
 
 - iam:
     - password [username]
+    - disable-mfa [username]
   - example: iam password myuser
+             iam disable-mfa scottr
 
 - inventory
 
@@ -217,6 +219,18 @@ case ${COMMAND} in
           EXIT_CODE="$?"
         else
           EXIT_CODE=1
+        fi
+      ;;
+      disable-mfa)
+        shift
+        if [[ -n "${1}" ]]; then
+          if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+            for ENTITY in $(aws --profile ${AWS_PROFILE} iam list-virtual-mfa-devices  --query 'VirtualMFADevices[*].SerialNumber' --output text) ; do
+              if echo "${ENTITY}" | egrep -q "mfa/${1}$" ; then
+                 aws --profile ${AWS_PROFILE} iam deactivate-mfa-device --user-name ${1} --serial-number "${LINE}"
+              fi
+            done
+          fi
         fi
       ;;
     esac
