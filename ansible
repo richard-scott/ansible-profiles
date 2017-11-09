@@ -224,7 +224,7 @@ case ${COMMAND} in
           if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
             for ENTITY in $(aws --profile ${AWS_PROFILE} iam list-virtual-mfa-devices  --query 'VirtualMFADevices[*].SerialNumber' --output text) ; do
               if echo "${ENTITY}" | egrep -q "mfa/${1}$" ; then
-                 aws --profile ${AWS_PROFILE} iam deactivate-mfa-device --user-name ${1} --serial-number "${LINE}"
+                 aws --profile ${AWS_PROFILE} iam deactivate-mfa-device --user-name ${1} --serial-number "${ENTITY}"
               fi
             done
           fi
