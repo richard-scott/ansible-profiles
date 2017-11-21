@@ -186,12 +186,19 @@ esac
 EXIT_CODE="0"
 case ${COMMAND} in
   aws)
-    if [[ -n "${@}" ]]; then
-      aws --profile ${AWS_PROFILE} ${@}
-      EXIT_CODE="$?"
-    else
-      EXIT_CODE=1
-    fi
+    case ${1} in
+      decode)
+        aws --profile ${AWS_PROFILE} sts decode-authorization-message --encoded message "${@}"
+      ;;
+      *)
+        if [[ -n "${@}" ]]; then
+          aws --profile ${AWS_PROFILE} ${@}
+          EXIT_CODE="$?"
+        else
+          EXIT_CODE=1
+        fi
+      ;;
+    esac
   ;;
   cli)
     /usr/bin/ansible "${@}"
