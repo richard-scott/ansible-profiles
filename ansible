@@ -49,8 +49,10 @@ if [[ ${HELP} -gt 0 ]]; then
 
 Commands:
 
-- aws [raw command[
+- aws [raw command]
+    - aws decode [message]
   - example: aws help
+             aws decode "EjE8j1AEXAMPLEDOwukwv5KbOS2j0jiZTslESOmbSFnqY91ElGRRQpIweQ5CQDQmaS7DBMfJDqwpZAmORTOKH"
 
 - cli: Run unmodified Ansible commands
   - example: ansible [profile] cli -m raw localhost -a uptime
