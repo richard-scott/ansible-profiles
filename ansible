@@ -390,7 +390,13 @@ case ${COMMAND} in
     fi
   ;;
   run)
-    PLAYBOOK="${1}.yml"
+    if [[ -e ${1}.yml ]]; then
+      PLAYBOOK="${1}.yml"
+    else
+      if [[ -e ${1} ]]; then
+        PLAYBOOK="${1}"
+      fi
+    fi
     RETRY="${1}.retry"
     shift
     case ${1} in
