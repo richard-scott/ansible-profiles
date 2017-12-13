@@ -5,15 +5,8 @@ if [[ ! -d ~/.aws ]]; then
 	exit 1
 fi
 if ! grep -q Ansible/bin ~/.bashrc ; then
-	cd ~
-	git clone https://github.com/magicmonty/bash-git-prompt.git .bash-git-prompt --depth=1
-
 	echo "Adding hooks to ~/.bashrc to enable use custom 'ansible' wrapper to generate aliases"
 	cat >> ~/.bashrc <<-'EOF'
-
-	# Setup GIT Prompt
-	GIT_PROMPT_ONLY_IN_REPO=1
-	source ~/.bash-git-prompt/gitprompt.sh
 
 	# Get BashOnWindows to save history more frequently
 	export PROMPT_COMMAND='history -a'
