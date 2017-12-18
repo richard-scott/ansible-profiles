@@ -449,12 +449,12 @@ case ${COMMAND} in
           fi
         fi
       fi
-      if [[ ${EXIT_CODE} -eq 0 ]]; then
-        /usr/bin/ansible -m setup ${HOST}
-        EXIT_CODE="$?"
-      fi
     else
-      EXIT_CODE=1
+      HOST="localhost"
+    fi
+    if [[ ${EXIT_CODE} -eq 0 ]]; then
+      /usr/bin/ansible -m setup ${HOST}
+      EXIT_CODE="$?"
     fi
   ;;
   ssh)
