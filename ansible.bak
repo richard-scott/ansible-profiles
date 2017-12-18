@@ -1,0 +1,624 @@
+#!/bin/bash
+CWD="$(pwd)"
+cd $(dirname ${0})
+SELF="$(pwd)/$(basename ${0})"
+cd ..
+START_DIR=$(pwd)
+HELP=0
+if [[ -z "${1}" ]]; then
+  HELP=1
+else
+  case ${1} in
+    list-profiles)
+      if [[ -d ${START_DIR}/profiles ]]; then
+        cd ${START_DIR}/profiles
+        if [[ $(find * -name .vault.dat -type f 2>/dev/null | wc -l) -gt 0 ]]; then
+          for D in $(find * -name .vault.dat -type f 2>/dev/null) ; do
+            echo "$(dirname ${D})"
+          done
+        fi
+      fi
+      exit 0
+    ;;
+    \-version|\-\-version)
+      /usr/bin/ansible --version
+      exit 0
+    ;;
+    *)
+      PROFILE="${1}"
+      shift
+    ;;
+  esac
+fi
+if [[ -z "${1}" ]]; then
+  HELP=1
+else
+  COMMAND="${1}"
+  shift
+fi
+if [[ ${HELP} -gt 0 ]]; then
+  cat <<-EOF
+	Help
+
+	Usage: $(basename ${0}) profile command args
+
+	Profile(s):
+	$(
+		${SELF} list-profiles
+	)
+
+Commands:
+
+- aws [raw command]
+    - aws decode [message]
+  - example: aws help
+             aws decode "EjE8j1AEXAMPLEDOwukwv5KbOS2j0jiZTslESOmbSFnqY91ElGRRQpIweQ5CQDQmaS7DBMfJDqwpZAmORTOKH"
+
+- cli: Run unmodified Ansible commands
+  - example: ansible [profile] cli -m raw localhost -a uptime
+
+- env: List ANSIBLE/AWS Environment variables setup
+
+- iam:
+    - password [username]
+    - disable-mfa [username]
+  - example: iam password myuser
+             iam disable-mfa scottr
+
+- inventory
+
+- list
+  - elb: list ELBs by name
+    - instances: list instances attached to an elb
+  - iam
+    - certs: List SSL Certs in IAM
+  - instances
+      - aliases: Output list of bash compatible alias command to setup shell
+      - get-ip: Convert a hostname into an IP address
+      - running: List basic information of running instances
+        - details: List more details of running instances
+      - stopped: List basic information of stopped instances
+    - example: ansible [profile] list elb
+               ansible [profile] list elb instances [elb-name]
+               ansible [profile] list iam certs
+               ansible [profile] list instances aliases
+               ansible [profile] list instances get-ip zabbix-server
+               ansible [profile] list instances running
+               ansible [profile] list instances running details
+               ansible [profile] list instances stopped
+
+- raw: Run simple commands on a host
+  - example: ansible [profile] raw localhost uptime
+
+- run playbook (leaving off .yml extension)
+  - example: ansible [profile] run zabbix-agent (This will run the zabbix-agent.yml playbook from the [profile] folder
+             ansible [profile] run zabbix-agent <hostname|ip> (This will only run it against this Hostname/IP)
+
+- setup: Run Ansible -m setup against a server to gather Ansible facts about a system (used for testing and working out fact names)
+  - example: ansible [profile] setup [hostname|ip]
+
+- scp: scp to/from a host
+  - example: ansible [profile] scp -r /etc <username@>[hostname|ip]:remote/path/relative/to/user/home/directory
+             ansible [profile] scp -r /etc <username@>[hostname|ip]:/server/wide/remote/path
+
+- ssh: SSH to a host
+    - tunnel: Setup local to remote tunnel
+  - example: ansible [profile] ssh <username@>[hostname|ip]
+             ansible [profile] ssh tunnel <username@>[hostname|ip] [local_port] [remote_host] [remote_port]
+
+- vault
+  - vault encrypt yaml file (leaving off .yml)
+    - example: ansible [profile] vault encrypt secrets (This will encrypt secrets.yml playbook from the [profile] folder)
+  - vault decrypt yaml file (leaving off .yml)
+    - example: ansible [profile] vault decrypt secrets (This will encrypt secrets.yml playbook from the [profile] folder)
+
+- version: display ansible version details
+
+EOF
+  exit 1
+fi
+if [[ -f ansible.cfg ]]; then
+  export ANSIBLE_CONFIG="$(pwd)/ansible.cfg"
+fi
+if [[ ! -d $(pwd)/profiles/${PROFILE} ]]; then
+  echo "Unable to find profile: ${PROFILE}"
+  echo "hint: mkdir -p $(pwd)/profiles/${PROFILE}"
+  exit 1
+fi
+if [[ ! -f profiles/${PROFILE}/.vault.dat ]]; then
+  uuidgen > profiles/${PROFILE}/.vault.dat
+fi
+export ANSIBLE_VAULT_PASSWORD_FILE=".vault.dat"
+if [[ -z "${ANSIBLE_INVENTORY}" ]]; then
+  AWS_PROFILE="$(echo "${PROFILE}" | tr '[:upper:]' '[:lower:]' | sed 's|/|-|g')"
+  export AWS_PROFILE="${AWS_PROFILE}"
+  export AWS_DEFAULT_PROFILE="${AWS_PROFILE}"
+  mkdir -p profiles/${PROFILE}/inventory
+  case ${PROFILE} in
+    localhost)
+      if [[ ! -f profiles/${PROFILE}/inventory/localhost ]]; then
+        echo "localhost ssh_connection=localhost" > profiles/${PROFILE}/inventory/localhost
+      fi
+    ;;
+    *)
+      if ! aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+        echo "Unable to find AWS profile: ${AWS_PROFILE}"
+        echo "Run: aws configure --profile ${AWS_PROFILE}"
+        exit 1
+      fi
+      if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+        if [[ ! -f profiles/${PROFILE}/inventory/ec2.py ]]; then
+          wget -q -O profiles/${PROFILE}/inventory/ec2.ini https://raw.github.com/ansible/ansible/devel/contrib/inventory/ec2.ini
+          sed -i 's/ public_dns_name$/ private_dns_name/' profiles/${PROFILE}/inventory/ec2.ini
+          sed -i 's/ ip_address$/ private_ip_address/' profiles/${PROFILE}/inventory/ec2.ini
+          sed -i 's/^#rds = False$/rds = False/' profiles/${PROFILE}/inventory/ec2.ini
+          wget -q -O profiles/${PROFILE}/inventory/ec2.py https://raw.github.com/ansible/ansible/devel/contrib/inventory/ec2.py
+          chmod +x profiles/${PROFILE}/inventory/ec2.py
+        fi
+      fi
+    ;;
+  esac
+  export ANSIBLE_INVENTORY="$(pwd)/profiles/${PROFILE}/inventory"
+fi
+cd profiles/${PROFILE}
+export ANSIBLE_SSH_ARGS="-C -o ControlMaster=auto -o ControlPersist=60s -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+if [[ -f .ssh/config ]]; then
+  export ANSIBLE_SSH_ARGS="-C -F $(pwd)/.ssh/config ${ANSIBLE_SSH_ARGS}"
+fi
+case ${COMMAND} in
+  cli|env|raw|run)
+    if [[ -d ${START_DIR}/roles ]]; then
+      ANSIBLE_ROLES_PATH="${START_DIR}/roles"
+    fi
+    if [[ -d ${START_DIR}/profiles/roles ]]; then
+      if [[ -n "${ANSIBLE_ROLES_PATH}" ]]; then
+        ANSIBLE_ROLES_PATH="${ANSIBLE_ROLES_PATH}:"
+      fi
+      ANSIBLE_ROLES_PATH="${ANSIBLE_ROLES_PATH}${START_DIR}/profiles/roles"
+    fi
+    if [[ -d ${START_DIR}/profiles/${PROFILE}/roles ]]; then
+      if [[ -n "${ANSIBLE_ROLES_PATH}" ]]; then
+        ANSIBLE_ROLES_PATH="${ANSIBLE_ROLES_PATH}:"
+      fi
+      ANSIBLE_ROLES_PATH="${ANSIBLE_ROLES_PATH}${START_DIR}/profiles/${PROFILE}/roles"
+    fi
+    export ANSIBLE_ROLES_PATH
+  ;;
+esac
+EXIT_CODE="0"
+case ${COMMAND} in
+  aws)
+    case ${1} in
+      decode)
+        aws --profile ${AWS_PROFILE} sts decode-authorization-message --encoded message "${@}"
+      ;;
+      *)
+        if [[ -n "${@}" ]]; then
+          aws --profile ${AWS_PROFILE} ${@}
+          EXIT_CODE="$?"
+        else
+          EXIT_CODE=1
+        fi
+      ;;
+    esac
+  ;;
+  cli)
+    /usr/bin/ansible "${@}"
+    EXIT_CODE="$?"
+  ;;
+  env)
+    echo ""
+    env | grep -E "(ANSIBLE|AWS)"
+    echo ""
+  ;;
+  iam)
+    case ${1} in
+      password)
+        shift
+        if [[ -n "${1}" ]]; then
+          CMD_ARGS="iam update-login-profile --user-name ${1}"
+          shift
+          TEMPORARY_PASSWORD="$(pwgen -sync 24 1)"
+          CMD_ARGS="${CMD_ARGS} --password ${TEMPORARY_PASSWORD} --password-reset-required"
+          echo "Temporary Password: ${TEMPORARY_PASSWORD}"
+          aws --profile ${AWS_PROFILE} ${CMD_ARGS}
+          EXIT_CODE="$?"
+        else
+          EXIT_CODE=1
+        fi
+      ;;
+      disable-mfa)
+        shift
+        if [[ -n "${1}" ]]; then
+          if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+            for ENTITY in $(aws --profile ${AWS_PROFILE} iam list-virtual-mfa-devices  --query 'VirtualMFADevices[*].SerialNumber' --output text) ; do
+              if echo "${ENTITY}" | egrep -q "mfa/${1}$" ; then
+                 aws --profile ${AWS_PROFILE} iam deactivate-mfa-device --user-name ${1} --serial-number "${ENTITY}"
+              fi
+            done
+          fi
+        fi
+      ;;
+    esac
+  ;;
+  inventory)
+    if [[ -f ${ANSIBLE_INVENTORY}/ec2.py ]]; then
+      if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+        ${ANSIBLE_INVENTORY}/ec2.py ${@}
+      fi
+    else
+      find ${ANSIBLE_INVENTORY} -type f -exec cat {} \; | sort
+    fi
+  ;;
+  list)
+    case ${1} in
+      elb)
+        case ${2} in
+          instances)
+            if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+              aws --profile ${AWS_PROFILE} elb describe-load-balancers --load-balancer-name "${3}" \
+                | jq -r '.LoadBalancerDescriptions[].Instances[].InstanceId' | while read LINE ; do
+                  echo "${3} $(${SELF} ${PROFILE} list instances get-name-from-id ${LINE}) ${LINE}"
+                done
+            fi
+          ;;
+          *)
+            if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+              aws --profile ${AWS_PROFILE} elb describe-load-balancers \
+                | jq -r '.LoadBalancerDescriptions[]|.LoadBalancerName' | sort -u
+            fi
+          ;;
+        esac
+      ;;
+      iam)
+        case ${2} in
+          certs)
+            if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+              aws --profile ${AWS_PROFILE} ec2 iam list-server-certificates
+            fi
+          ;;
+        esac
+      ;;
+      instances)
+        case ${2} in
+          aliases)
+            if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+              UPDATE_CACHE=0
+              mkdir -p ~/.ansible/tmp/
+              if [[ ! -e ~/.ansible/tmp/${AWS_PROFILE}-instances.cache ]]; then
+                UPDATE_CACHE=1
+              else
+                if [[ $(($(date +%s)-$(date -r ~/.ansible/tmp/${AWS_PROFILE}-instances.cache +%s))) -gt 7200 ]]; then
+                  UPDATE_CACHE=1
+                fi
+              fi
+              if [[ ${UPDATE_CACHE} -gt 0 ]]; then
+                aws --profile ${AWS_PROFILE} ec2 describe-instances  --filter "Name=instance-state-name,Values=running" \
+                  | jq -r '.Reservations[].Instances[]| (.Tags[]|select(.["Key"] == "Name")|.Value) + " " + .PrivateIpAddress' \
+                  > ~/.ansible/tmp/${AWS_PROFILE}-instances.cache
+                touch ~/.ansible/tmp/${AWS_PROFILE}-instances.cache-aliases
+                truncate --size=0 ~/.ansible/tmp/${AWS_PROFILE}-instances.cache-aliases
+                cat ~/.ansible/tmp/${AWS_PROFILE}-instances.cache | while read LINE ; do
+                  if [[ -n "$(echo ${LINE} | awk '{print $2}')" ]]; then
+                    echo "alias ${AWS_PROFILE}-$(echo ${LINE} | awk '{print $1}')=\"${SELF} ${PROFILE} ssh $(echo ${LINE} | awk '{print $2}')\"" | tee -a ~/.ansible/tmp/${AWS_PROFILE}-instances.cache-aliases
+                  fi
+                done
+                if [[ -f inventory/aliases ]]; then
+                  cat inventory/aliases | grep -v "^#" | while read LINE ; do
+                     echo "alias ${AWS_PROFILE}-$(echo ${LINE} | awk -F ':' '{print $1}' | sed -r 's/\s+$//')=\"${SELF} ${PROFILE} $(echo ${LINE} | awk -F ':' '{print $2}'| sed -r 's/^\s+//')\"" | tee -a ~/.ansible/tmp/${AWS_PROFILE}-instances.cache-aliases
+                  done
+                fi
+              else
+                cat ~/.ansible/tmp/${AWS_PROFILE}-instances.cache-aliases
+              fi
+            fi
+          ;;
+          get-ip)
+            if [[ -n "${3}" ]]; then
+              if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+                RESULT="$(aws --profile ${AWS_PROFILE} ec2 describe-instances \
+                  | jq -r '.Reservations[].Instances[]| (.Tags[]|select(.["Key"] == "Name")|.Value) + " " + .PrivateIpAddress' \
+                  | egrep "^${3}\s[[:digit:]]")"
+              fi
+              if [[ -n "${RESULT}" ]]; then
+                echo "${RESULT}"
+              else
+                echo "${3}"
+              fi
+            fi
+          ;;
+          get-name-from-id)
+            if [[ -n "${3}" ]]; then
+              if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+                aws --profile ${AWS_PROFILE} ec2 describe-instances --instance-ids ${3} \
+                  | jq -r '.Reservations[].Instances[]| (.Tags[]|select(.["Key"] == "Name")|.Value) + " " + .PrivateIpAddress'
+              fi
+            fi
+          ;;
+          running)
+            case ${3} in
+              details)
+                if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+                  aws --profile ${AWS_PROFILE} ec2 describe-instances \
+                    --filters "Name=instance-state-name,Values=running" \
+                    | jq -r '.Reservations[].Instances[]|.VpcId + " " + (.Tags[]|select(.["Key"] == "Name")|.Value) + " " + .PrivateIpAddress + " " + .SubnetId + " " + (.SecurityGroups[]|select(.["GroupId"])|.GroupId) + " " + .InstanceType + " " + .IamInstanceProfile.Arn + " " + .PublicIpAddress'
+                fi
+              ;;
+              *)
+                if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+                  aws --profile ${AWS_PROFILE} ec2 describe-instances \
+                    --filters "Name=instance-state-name,Values=running" \
+                    | jq -r '.Reservations[].Instances[]|.VpcId + " " + (.Tags[]|select(.["Key"] == "Name")|.Value) + " " + .PrivateIpAddress + " " + .KeyName'
+                fi
+              ;;
+            esac
+          ;;
+          stopped)
+            if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+              aws --profile ${AWS_PROFILE} ec2 describe-instances  \
+                --filters "Name=instance-state-name,Values=stopped" \
+                | jq -r '.Reservations[].Instances[]|.VpcId + " " + (.Tags[]|select(.["Key"] == "Name")|.Value) + " " + .PrivateIpAddress + " " + .KeyName'
+            fi
+          ;;
+        esac
+      ;;
+    esac
+  ;;
+  raw)
+    HOST="${1}"
+    shift
+    if [[ -n "${HOST}" ]]; then
+      if ! echo "${HOST}" | egrep -q "^[[:digit:]]+" ; then
+        if [[ -f inventory/ec2.py ]]; then
+          if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+            HOST_BY_IP="$(${SELF} ${PROFILE} list instances get-ip ${HOST} | awk '{print $2}')"
+            if [[ -n "${HOST_BY_IP}" ]]; then
+              HOST="${HOST_BY_IP}"
+            fi
+          else
+            EXIT_CODE=1
+          fi
+        fi
+      fi
+      if [[ ${EXIT_CODE} -eq 0 ]]; then
+        env | egrep "^(ANSIBLE|AWS)_"
+        /usr/bin/ansible -m raw ${HOST} -a "${@}"
+        EXIT_CODE="$?"
+      fi
+    else
+      EXIT_CODE=1
+    fi
+  ;;
+  run)
+    if [[ -e ${1}.yml ]]; then
+      PLAYBOOK="${1}.yml"
+    else
+      if [[ -e ${1} ]]; then
+        PLAYBOOK="${1}"
+      fi
+    fi
+    RETRY="${1}.retry"
+    shift
+    case ${1} in
+      -*) ;;
+      *) HOST="${1}"
+    esac
+    if [[ -f ${PLAYBOOK} ]]; then
+      if [[ -n "${HOST}" ]]; then
+        if ! echo "${HOST}" | egrep -q "^[[:digit:]]+" ; then
+          if [[ -f inventory/ec2.py ]]; then
+            if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+              HOST_BY_IP="$(${SELF} ${PROFILE} list instances get-ip ${HOST} | awk '{print $2}')"
+              if [[ -n "${HOST_BY_IP}" ]]; then
+                HOST="${HOST_BY_IP}"
+                HOST="--limit ${HOST}"
+              fi
+            else
+              EXIT_CODE=1
+            fi
+          fi
+        fi
+      else
+        if [[ -e host_vars/exclude ]]; then
+          HOST="--limit @host_vars/exclude"
+        fi
+      fi
+      if [[ ${EXIT_CODE} -eq 0 ]]; then
+        ansible-playbook ${PLAYBOOK} ${HOST} 2>&1
+        EXIT_CODE="$?"
+      fi
+      rm -vf ${RETRY}
+    else
+      echo "Playbook $(pwd)/profiles/${PROFILE}/${PLAYBOOK}, does not exist!"
+      exit 1
+    fi
+  ;;
+  setup)
+    HOST="${1}"
+    shift
+    if [[ -n "${HOST}" ]]; then
+      if ! echo "${HOST}" | egrep -q "^[[:digit:]]+" ; then
+        if [[ -f inventory/ec2.py ]]; then
+          if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+            HOST_BY_IP="$(${SELF} ${PROFILE} list instances get-ip ${HOST} | awk '{print $2}')"
+            if [[ -n "${HOST_BY_IP}" ]]; then
+              HOST="${HOST_BY_IP}"
+            fi
+          else
+            EXIT_CODE=1
+          fi
+        fi
+      fi
+      if [[ ${EXIT_CODE} -eq 0 ]]; then
+        /usr/bin/ansible -m setup ${HOST}
+        EXIT_CODE="$?"
+      fi
+    else
+      EXIT_CODE=1
+    fi
+  ;;
+  ssh)
+    case ${1} in
+      tunnel)
+        shift
+        TARGET="${1}"
+        shift
+        LOCAL_PORT="${1}"
+        shift
+        REMOTE_HOST="${1}"
+        shift
+        REMOTE_PORT="${1}"
+        echo "Creating SSH Tunnel from 127.0.0.1:${LOCAL_PORT} -> ${REMOTE_HOST}:${REMOTE_PORT} via ${TARGET}"
+        ${SELF} ${PROFILE} ssh ${TARGET} -L ${LOCAL_PORT}:${REMOTE_HOST}:${REMOTE_PORT} "(echo -n 'Press CTRL+C to drop tunnel' ; while true ; do sleep 10s ; echo -n '.' ; done)"
+        echo ""
+      ;;
+      *)
+        TARGET="${1}"
+        if [[ -z "${TARGET}" ]]; then
+          ${SELF}
+          exit 1
+        fi
+        shift
+        if echo "${TARGET}" | grep -q "@" ; then
+          OVERRIDE_USER=0
+          TARGET_USER="$(echo ${TARGET} | awk -F ':' '{print $1}' | awk -F '@' '{print $1}')"
+          TARGET_HOST="$(echo ${TARGET} | awk -F ':' '{print $1}' | awk -F '@' '{print $2}')"
+        else
+          OVERRIDE_USER=1
+          for INVENTORY_FILE in group_vars/all host_vars/all inventory/hosts host_vars/${TARGET} ; do
+            if [[ -f ${INVENTORY_FILE} ]]; then
+              if echo "${INVENTORY_FILE}" | grep -Eq "^(group|host)_vars/(all|${TARGET})$" ; then
+                R="$(cat ${INVENTORY_FILE} | grep -v "^#" | awk -F 'ansible_host:' '{print $2}' | awk '{print $1}' | column)"
+                if [[ -n "${R}" ]]; then
+                  TARGET_HOST="${R}"
+                fi
+                R="$(cat ${INVENTORY_FILE} | grep -v "^#" | awk -F 'ansible_user:' '{print $2}' | awk '{print $1}' | column)"
+                if [[ -n "${R}" ]]; then
+                  TARGET_USER="${R}"
+                fi
+                R="$(cat ${INVENTORY_FILE} | grep -v "^#" | awk -F 'ansible_password:' '{print $2}' | awk '{print $1}' | column)"
+                if [[ -n "${R}" ]]; then
+                  TARGET_USER_PASS="${R}"
+                fi
+              else
+                R="$(cat ${INVENTORY_FILE} | grep -v "^#" | grep "^${TARGET} " | awk -F 'ansible_host=' '{print $2}' | awk '{print $1}' | column)"
+                if [[ -n "${R}" ]]; then
+                  TARGET_HOST="${R}"
+                fi
+                R="$(cat ${INVENTORY_FILE} | grep -v "^#" | grep "^${TARGET} " | awk -F 'ansible_user=' '{print $2}' | awk '{print $1}' | column)"
+                if [[ -n "${R}" ]]; then
+                  TARGET_USER="${R}"
+                fi
+                R="$(cat ${INVENTORY_FILE} | grep -v "^#" | grep "^${TARGET} " | awk -F 'ansible_password=' '{print $2}' | awk '{print $1}' | column)"
+                if [[ -n "${R}" ]]; then
+                  TARGET_USER_PASS="${R}"
+                fi
+              fi
+            fi
+          done
+          if [[ -z "${TARGET_HOST}" ]]; then
+            TARGET_HOST="${TARGET}"
+          fi
+          if [[ "${OVERRIDE_USER}" -gt 0 ]]; then
+            if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+              R="$(aws --profile ${AWS_PROFILE} ec2 describe-instances --query 'Reservations[*].Instances[*].[Tags[?Key==`Default Username`].Value|[0],PrivateIpAddress,PublicIpAddress]' --output text | grep ${TARGET_HOST} | awk '{print $1}' | sed 's/None//' | column)"
+              if [[ -n "${R}" ]]; then
+                TARGET_USER="${R}"
+              fi
+            fi
+          fi
+        fi
+        if [[ -n "${TARGET_USER}" ]]; then
+          HOST="${TARGET_USER}@${TARGET_HOST}"
+        else
+          HOST="${TARGET_HOST}"
+        fi
+        if [[ -n "${TARGET_USER_PASS}" ]]; then
+          SSH_CMD="sshpass -e ssh"
+          export SSHPASS="${TARGET_USER_PASS}"
+        else
+          SSH_CMD="ssh"
+        fi
+        if [[ -n "${@}" ]]; then
+        #  if ! echo "${@}" | grep -q "^-" ; then
+        #    SSH_CMD="${SSH_CMD} ${1}"
+        #    shift
+        #  fi
+          CMD_ARGS="${@}"
+        fi
+        if [[ -z "${CMD_ARGS}" ]]; then
+          if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+            case $(aws --profile ${AWS_PROFILE} ec2 describe-instances --query 'Reservations[*].Instances[*].[Tags[?Key==`Sudo`].Value|[0],PrivateIpAddress,PublicIpAddress]' --output text | grep ${TARGET_HOST} | awk '{print $1}' | sed 's/None//' | column | tr '[:upper:]' '[:lower:]') in
+              no|false|0) ;;
+              *)
+                SUDO_CMD="$(aws --profile ${AWS_PROFILE} ec2 describe-instances --query 'Reservations[*].Instances[*].[Tags[?Key==`Sudo Command`].Value|[0],PrivateIpAddress,PublicIpAddress]' --output text | grep ${TARGET_HOST} | awk '{print $1}' | sed 's/None//' | column | tr '[:upper:]' '[:lower:]')"
+                if [[ -n "${SUDO_CMD}" ]]; then
+                    CMD_ARGS="${CMD_ARGS} sudo ${SUDO_CMD}"
+                  else
+                    CMD_ARGS="${CMD_ARGS} sudo -i"
+                  fi
+              ;;
+            esac
+          fi
+        fi
+        if [[ -f inventory/ec2.py ]]; then
+          if ! aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+            EXIT_CODE=1
+          fi
+        fi
+        if [[ ${EXIT_CODE} -eq 0 ]]; then
+          ${SSH_CMD} -t -A -q ${ANSIBLE_SSH_ARGS} ${HOST} ${CMD_ARGS}
+          EXIT_CODE="$?"
+        fi
+      ;;
+    esac
+  ;;
+  scp)
+    cd ${CWD}
+    H=""
+    for I in ${@} ; do
+      if ! echo "${I}" | grep -q "^-" ; then
+        if echo "${I}" | grep -q "@" ; then
+          H="$(echo ${I} | awk -F ':' '{print $1}' | awk -F '@' '{print $2}')"
+          break
+        else
+          if echo "${I}" | grep -q ":" ; then
+            H="$(echo ${I} | awk -F ':' '{print $1}')"
+            break
+          fi
+        fi
+      fi
+    done
+    if [[ -n "${H}" ]]; then
+      if ! echo "${H}" | egrep -q "^[[:digit:]]+" ; then
+        HOST_BY_IP="$(${SELF} ${PROFILE} list instances get-ip ${H} | awk '{print $2}')"
+        CMD_ARGS="$(echo ${@} | sed -r "s|${H}:|${HOST_BY_IP}:|")"
+      else
+        CMD_ARGS="${@}"
+      fi
+      if [[ -f inventory/ec2.py ]]; then
+        if ! aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+          EXIT_CODE=1
+         fi
+      fi
+      if [[ ${EXIT_CODE} -eq 0 ]]; then
+        scp ${ANSIBLE_SSH_ARGS} ${CMD_ARGS}
+        EXIT_CODE="$?"
+      fi
+    else
+      EXIT_CODE="1"
+    fi
+  ;;
+  vault)
+    CMD="${1}"
+    shift
+    FILE="${1}"
+    shift
+    if [[ -f ${FILE} ]]; then
+      cd profiles/${PROFILE}
+      /usr/bin/ansible-vault ${CMD} ${FILE}
+      EXIT_CODE="$?"
+    fi
+  ;;
+esac
+exit ${EXIT_CODE}
