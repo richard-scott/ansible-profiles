@@ -398,12 +398,12 @@ case ${COMMAND} in
       fi
     fi
     RETRY="${1}.retry"
-    shift
-    case ${1} in
-      -*) ;;
-      *) HOST="${1}"
-    esac
     if [[ -f ${PLAYBOOK} ]]; then
+      shift
+      case ${1} in
+        -*) ;;
+        *) HOST="${1}"
+      esac
       if [[ -n "${HOST}" ]]; then
         if ! echo "${HOST}" | egrep -q "^[[:digit:]]+" ; then
           if [[ -f inventory/ec2.py ]]; then
@@ -429,7 +429,7 @@ case ${COMMAND} in
       fi
       rm -vf ${RETRY}
     else
-      echo "Playbook $(pwd)/profiles/${PROFILE}/${PLAYBOOK}, does not exist!"
+      echo "Aborting as playbook $(pwd)/profiles/${PROFILE}/${1}.yml, does not exist!"
       exit 1
     fi
   ;;
