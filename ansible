@@ -461,7 +461,10 @@ case ${COMMAND} in
       HOST="localhost"
     fi
     if [[ ${EXIT_CODE} -eq 0 ]]; then
-      /usr/bin/ansible -m setup ${HOST}
+      case ${HOST} in
+        localhost) CMD_SETUP="env -i" ;;
+      esac
+      ${CMD_SETUP} /usr/bin/ansible -m setup ${HOST}
       EXIT_CODE="$?"
     fi
   ;;
