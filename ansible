@@ -147,7 +147,15 @@ if [[ -z "${ANSIBLE_INVENTORY}" ]]; then
         exit 1
       fi
       if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
+        UPDATE_EC2_PY=0
         if [[ ! -f profiles/${PROFILE}/inventory/ec2.py ]]; then
+          UPDATe_EC2_PY=1
+        else
+          if [[ $(($(date +%s)-$(date -r profiles/${PROFILE}/inventory/ec2.py +%s))) -gt $((24*60*60)) ]]; then
+            UPDATE_EC2_PY=1
+          fi
+        fi
+        if [[ ${UPDATE_EC2_PY} -gt 0 ]]; then
           wget -q -O profiles/${PROFILE}/inventory/ec2.ini https://raw.github.com/ansible/ansible/devel/contrib/inventory/ec2.ini
           sed -i 's/ public_dns_name$/ private_dns_name/' profiles/${PROFILE}/inventory/ec2.ini
           sed -i 's/ ip_address$/ private_ip_address/' profiles/${PROFILE}/inventory/ec2.ini
