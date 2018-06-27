@@ -7,6 +7,7 @@ if [[ $(git remote -v | wc -l) -gt 0 ]]; then
 fi
 cd
 REFRESH=${1:-90}
+echo "Scanning for GIT repos..."
 for GR in $(find ~ -name .git) ; do
   if [ $(find ${GR} -maxdepth 0 -type d -mmin +${REFRESH} | wc -l) -gt 0 ]; then
     cd $(dirname ${GR})
