@@ -178,6 +178,9 @@ case ${COMMAND} in
     if [[ -d ${START_DIR}/roles ]]; then
       ANSIBLE_ROLES_PATH="${START_DIR}/roles"
     fi
+    if [[ -d ~/.ansible/roles ]]; then
+      ANSIBLE_ROLES_PATH="${ANSIBLE_ROLES_PATH}:~/.ansible/roles"
+    fi
     if [[ -d ${START_DIR}/profiles/roles ]]; then
       if [[ -n "${ANSIBLE_ROLES_PATH}" ]]; then
         ANSIBLE_ROLES_PATH="${ANSIBLE_ROLES_PATH}:"
@@ -401,8 +404,12 @@ case ${COMMAND} in
     if [[ -e ${1}.yml ]]; then
       PLAYBOOK="${1}.yml"
     else
-      if [[ -e ${1} ]]; then
-        PLAYBOOK="${1}"
+      if [[ -e ${1}.yaml ]]; then
+        PLAYBOOK="${1}.yaml"
+      else
+        if [[ -e ${1} ]]; then
+          PLAYBOOK="${1}"
+        fi
       fi
     fi
     RETRY="${1}.retry"
@@ -410,7 +417,7 @@ case ${COMMAND} in
       shift
       case ${1} in
         -*) ;;
-        *) HOST="${1}"
+        *) HOST="${@}" ; shift ;;
       esac
       if [[ -n "${HOST}" ]]; then
         if ! echo "${HOST}" | egrep -q "^[[:digit:]]+" ; then
@@ -418,8 +425,7 @@ case ${COMMAND} in
             if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
               HOST_BY_IP="$(${SELF} ${PROFILE} list instances get-ip ${HOST} | awk '{print $2}')"
               if [[ -n "${HOST_BY_IP}" ]]; then
-                HOST="${HOST_BY_IP}"
-                HOST="--limit ${HOST}"
+                HOST="--limit=${HOST_BY_IP}"
               fi
             else
               EXIT_CODE=1
@@ -428,11 +434,11 @@ case ${COMMAND} in
         fi
       else
         if [[ -e host_vars/exclude ]]; then
-          HOST="--limit @host_vars/exclude"
+          HOST="--limit=@host_vars/exclude"
         fi
       fi
       if [[ ${EXIT_CODE} -eq 0 ]]; then
-        ansible-playbook ${PLAYBOOK} ${HOST} ${@} 2>&1
+        ansible-playbook ${PLAYBOOK} ${HOST} "${@}" 2>&1
         EXIT_CODE="$?"
       fi
       rm -vf ${RETRY}
