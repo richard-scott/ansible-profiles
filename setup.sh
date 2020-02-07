@@ -1,12 +1,12 @@
 #!/bin/bash
 if [[ ! -d ~/.aws ]]; then
-	echo "Unable to find ~/.aws, it doesn't look like you have configured any profiles yet!"
-	echo "Please do that and the run this script to add the wrapper hooks"
-	exit 1
+  echo "Unable to find ~/.aws, it doesn't look like you have configured any profiles yet!"
+  echo "Please do that and the run this script to add the wrapper hooks"
+  exit 1
 fi
 if ! grep -q Ansible/bin ~/.bashrc ; then
-	echo "Adding hooks to ~/.bashrc to enable use custom 'ansible' wrapper to generate aliases"
-	cat >> ~/.bashrc <<-'EOF'
+  echo "Adding hooks to ~/.bashrc to enable use custom 'ansible' wrapper to generate aliases"
+  cat >> ~/.bashrc <<-'EOF'
 
 	# Get BashOnWindows to save history more frequently
 	export PROMPT_COMMAND='history -a'
@@ -22,5 +22,5 @@ if ! grep -q Ansible/bin ~/.bashrc ; then
 	done
 
 	EOF
-	echo "Please log out and back in again to setup aliases"
+  echo "Please log out and back in again to setup aliases"
 fi

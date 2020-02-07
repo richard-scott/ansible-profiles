@@ -32,7 +32,7 @@ else
 fi
 if [[ -z "${1}" ]]; then
   HELP=1
-else
+  else
   COMMAND="${1}"
   shift
 fi
@@ -90,7 +90,7 @@ Commands:
 - raw: Run simple commands on a host
   - example: ansible [profile] raw localhost uptime
 
-- run playbook (leaving off .yml extension)
+- run playbook (leaving off .yml|yaml extension)
   - example: ansible [profile] run zabbix-agent (This will run the zabbix-agent.yml playbook from the [profile] folder
              ansible [profile] run zabbix-agent <hostname|ip> (This will only run it against this Hostname/IP)
 
@@ -107,18 +107,15 @@ Commands:
              ansible [profile] ssh tunnel <username@>[hostname|ip] [local_port] [remote_host] [remote_port]
 
 - vault
-  - vault encrypt yaml file (leaving off .yml)
+  - vault encrypt yaml file (leaving off .yml|yaml)
     - example: ansible [profile] vault encrypt secrets (This will encrypt secrets.yml playbook from the [profile] folder)
-  - vault decrypt yaml file (leaving off .yml)
+  - vault decrypt yaml file (leaving off .yml|yaml)
     - example: ansible [profile] vault decrypt secrets (This will encrypt secrets.yml playbook from the [profile] folder)
 
 - version: display ansible version details
 
 EOF
   exit 1
-fi
-if [[ -f ansible.cfg ]]; then
-  export ANSIBLE_CONFIG="$(pwd)/ansible.cfg"
 fi
 if [[ ! -d $(pwd)/profiles/${PROFILE} ]]; then
   echo "Unable to find profile: ${PROFILE}"
@@ -133,10 +130,10 @@ if [[ -z "${ANSIBLE_INVENTORY}" ]]; then
   AWS_PROFILE="$(echo "${PROFILE}" | tr '[:upper:]' '[:lower:]' | sed 's|/|-|g')"
   export AWS_PROFILE="${AWS_PROFILE}"
   export AWS_DEFAULT_PROFILE="${AWS_PROFILE}"
-  mkdir -p profiles/${PROFILE}/inventory
   case ${PROFILE} in
     localhost)
       if [[ ! -f profiles/${PROFILE}/inventory/localhost ]]; then
+        mkdir -p profiles/${PROFILE}/inventory
         echo "localhost ssh_connection=localhost" > profiles/${PROFILE}/inventory/localhost
       fi
     ;;
@@ -148,6 +145,7 @@ if [[ -z "${ANSIBLE_INVENTORY}" ]]; then
       fi
       if aws configure --profile ${AWS_PROFILE} list >/dev/null 2>&1 ; then
         UPDATE_EC2_PY=0
+        mkdir -p profiles/${PROFILE}/inventory
         if [[ ! -f profiles/${PROFILE}/inventory/ec2.py ]]; then
           UPDATE_EC2_PY=1
         else
@@ -166,19 +164,36 @@ if [[ -z "${ANSIBLE_INVENTORY}" ]]; then
       fi
     ;;
   esac
-  export ANSIBLE_INVENTORY="$(pwd)/profiles/${PROFILE}/inventory"
+  if [[ -d $(pwd)/profiles/${PROFILE}/inventory ]]; then
+    export ANSIBLE_INVENTORY="$(pwd)/profiles/${PROFILE}/inventory"
+  fi
 fi
 cd profiles/${PROFILE}
+if [[ -f ansible.cfg ]]; then
+  export ANSIBLE_CONFIG="$(pwd)/ansible.cfg"
+fi
 export ANSIBLE_SSH_ARGS="-C -o ControlMaster=auto -o ControlPersist=60s -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 if [[ -f .ssh/config ]]; then
   export ANSIBLE_SSH_ARGS="-C -F $(pwd)/.ssh/config ${ANSIBLE_SSH_ARGS}"
 fi
 case ${COMMAND} in
   cli|env|raw|run)
+    if [[ -n "${ANSIBLE_CONFIG}" ]]; then
+      if [[ -n "${ANSIBLE_ROLES_PATH}" ]]; then
+        ANSIBLE_ROLES_PATH="${ANSIBLE_ROLES_PATH}:"
+      fi
+      ANSIBLE_ROLES_PATH="$(cat ${ANSIBLE_CONFIG} | egrep -i '^roles_path\s+=\s+' | awk -F "\\\s+=\\\s+" '{print $2}')"
+    fi
     if [[ -d ${START_DIR}/roles ]]; then
-      ANSIBLE_ROLES_PATH="${START_DIR}/roles"
+      if [[ -n "${ANSIBLE_ROLES_PATH}" ]]; then
+        ANSIBLE_ROLES_PATH="${ANSIBLE_ROLES_PATH}:"
+      fi
+      ANSIBLE_ROLES_PATH="${ANSIBLE_ROLES_PATH}${START_DIR}/roles"
     fi
     if [[ -d ~/.ansible/roles ]]; then
+      if [[ -n "${ANSIBLE_ROLES_PATH}" ]]; then
+        ANSIBLE_ROLES_PATH="${ANSIBLE_ROLES_PATH}:"
+      fi
       ANSIBLE_ROLES_PATH="${ANSIBLE_ROLES_PATH}:~/.ansible/roles"
     fi
     if [[ -d ${START_DIR}/profiles/roles ]]; then
@@ -194,6 +209,26 @@ case ${COMMAND} in
       ANSIBLE_ROLES_PATH="${ANSIBLE_ROLES_PATH}${START_DIR}/profiles/${PROFILE}/roles"
     fi
     export ANSIBLE_ROLES_PATH
+
+    if [[ -d ${START_DIR}/collections ]]; then
+      ANSIBLE_COLLECTIONS_PATHS="${START_DIR}/collections"
+    fi
+    if [[ -d ~/.ansible/collections ]]; then
+      ANSIBLE_COLLECTIONS_PATHS="${ANSIBLE_COLLECTIONS_PATHS}:~/.ansible/collections"
+    fi
+    if [[ -d ${START_DIR}/profiles/collections ]]; then
+      if [[ -n "${ANSIBLE_COLLECTIONS_PATHS}" ]]; then
+        ANSIBLE_COLLECTIONS_PATHS="${ANSIBLE_COLLECTIONS_PATHS}:"
+      fi
+      ANSIBLE_COLLECTIONS_PATHS="${ANSIBLE_COLLECTIONS_PATHS}${START_DIR}/profiles/collections"
+    fi
+    if [[ -d ${START_DIR}/profiles/${PROFILE}/collections ]]; then
+      if [[ -n "${ANSIBLE_COLLECTIONS_PATHS}" ]]; then
+        ANSIBLE_COLLECTIONS_PATHS="${ANSIBLE_COLLECTIONS_PATHS}:"
+      fi
+      ANSIBLE_COLLECTIONS_PATHS="${ANSIBLE_COLLECTIONS_PATHS}${START_DIR}/profiles/${PROFILE}/collections"
+    fi
+    export ANSIBLE_COLLECTIONS_PATHS
   ;;
 esac
 EXIT_CODE="0"
@@ -443,7 +478,7 @@ case ${COMMAND} in
       fi
       rm -vf ${RETRY}
     else
-      echo "Aborting as playbook $(pwd)/profiles/${PROFILE}/${1}.yml, does not exist!"
+      echo "Aborting as playbook $(pwd)/profiles/${PROFILE}/${PLAYBOOK}, does not exist!"
       exit 1
     fi
   ;;

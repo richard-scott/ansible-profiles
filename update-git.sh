@@ -1,9 +1,13 @@
 #!/bin/bash
 echo "Checking GIT Repos:"
 cd $(dirname ${0})
+function pull()
+{
+  git pull 2>/dev/null | egrep -v "^Already up-to-date.$"
+}
 if [[ $(git remote -v | wc -l) -gt 0 ]]; then
   echo "  >> $(pwd)"
-  git pull 2>/dev/null | egrep -v "^Already up-to-date.$"
+  pull
 fi
 cd
 REFRESH=${1:-90}
@@ -13,7 +17,13 @@ for GR in $(find ~ -name .git) ; do
     cd $(dirname ${GR})
     if [[ $(git remote -v | wc -l) -gt 0 ]]; then
       echo "  >> $(dirname ${GR})"
-      git pull 2>/dev/null | egrep -v "^Already up-to-date.$"
+      #read < <( git pull & echo $! )
+      pull
     fi
   fi
 done
+echo "Waiting..."
+while pgrep --parent 1 --full "git pull" >/dev/null 2>&1 ; do
+  true
+done
+echo "Done."
