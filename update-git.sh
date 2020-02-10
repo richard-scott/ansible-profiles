@@ -22,8 +22,10 @@ for GR in $(find ~ -name .git) ; do
     fi
   fi
 done
-echo "Waiting..."
-while pgrep --parent 1 --full "git pull" >/dev/null 2>&1 ; do
-  true
-done
-echo "Done."
+if pgrep --parent 1 --full "git pull" >/dev/null 2>&1 ; then
+  echo "Waiting..."
+  while pgrep --parent 1 --full "git pull" >/dev/null 2>&1 ; do
+    true
+  done
+  echo "Done."
+fi
