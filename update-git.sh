@@ -12,7 +12,7 @@ fi
 cd
 REFRESH=${1:-90}
 echo "Scanning for GIT repos..."
-for GR in $(find ~ -name .git) ; do
+for GR in $(find ~ -name .git | egrep -v pyenv) ; do
   if [ $(find ${GR} -maxdepth 0 -type d -mmin +${REFRESH} | wc -l) -gt 0 ]; then
     cd $(dirname ${GR})
     if [[ $(git remote -v | wc -l) -gt 0 ]]; then
